@@ -1,0 +1,18 @@
+{
+  "name": "RentLocal",
+  "short_name": "RentLocal",
+  "description": "Rent equipment locally — trailers, backhoes, and tools",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#f05b00",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
