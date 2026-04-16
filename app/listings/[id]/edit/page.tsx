@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { fetchListing, patchListing } from '@/lib/db'
-import { generateId, formatPrice } from '@/lib/utils'
+import { uploadListingImage, deleteListingImage } from '@/lib/uploadImage'
+import { useAuth } from '@/components/AuthProvider'
 import type { Category, Condition, Listing } from '@/lib/types'
 
 interface FormData {
@@ -49,10 +50,12 @@ function SectionCard({ title, icon, children }: { title: string; icon: string; c
 export default function EditListingPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
+  const { user } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [original, setOriginal] = useState<Listing | null>(null)
   const [form, setForm] = useState<FormData | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const [errors, setErrors] = useState<Errors>({})
   const [saved, setSaved] = useState(false)
   const [photoLoading, setPhotoLoading] = useState(false)
@@ -97,48 +100,45 @@ export default function EditListingPage() {
     return Object.keys(e).length === 0
   }
 
-  function compressImage(file: File): Promise<string> {
-    return new Promise((resolve) => {
-      const img = new Image()
-      const url = URL.createObjectURL(file)
-      img.onload = () => {
-        const MAX = 1200
-        let { width, height } = img
-        if (width > MAX || height > MAX) {
-          if (width > height) { height = Math.round((height * MAX) / width); width = MAX }
-          else { width = Math.round((width * MAX) / height); height = MAX }
-        }
-        const canvas = document.createElement('canvas')
-        canvas.width = width; canvas.height = height
-        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
-        URL.revokeObjectURL(url)
-        resolve(canvas.toDataURL('image/jpeg', 0.72))
-      }
-      img.src = url
-    })
-  }
-
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     setPhotoLoading(true)
-    const compressed = await compressImage(file)
-    set('imageUrl', compressed)
+    setImageFile(file)
+    set('imageUrl', URL.createObjectURL(file))
     setPhotoLoading(false)
     e.target.value = ''
   }
 
   async function handleSubmit() {
-    if (!form || !original || !validate()) return
+    if (!form || !original || !validate() || !user) return
+    setPhotoLoading(true)
+    let image_url = form.imageUrl.trim() || null
+
+    if (imageFile) {
+      // Delete old image if it was a hosted URL
+      if (original.imageUrl?.includes('supabase')) {
+        await deleteListingImage(original.imageUrl).catch(() => {})
+      }
+      try { image_url = await uploadListingImage(user.id, imageFile) } catch {}
+    } else if (!form.imageUrl) {
+      // User removed the image
+      if (original.imageUrl?.includes('supabase')) {
+        await deleteListingImage(original.imageUrl).catch(() => {})
+      }
+      image_url = null
+    }
+
+    setPhotoLoading(false)
     await patchListing(id, {
-      title:        form.title.trim(),
-      description:  form.description.trim(),
-      category:     form.category as Category,
-      condition:    form.condition as Condition,
+      title:         form.title.trim(),
+      description:   form.description.trim(),
+      category:      form.category as Category,
+      condition:     form.condition as Condition,
       price_per_day: Number(form.pricePerDay),
-      location:     form.location.trim(),
-      image_url:    form.imageUrl.trim() || null,
-      available:    form.available,
+      location:      form.location.trim(),
+      image_url,
+      available:     form.available,
     })
     setSaved(true)
     setTimeout(() => router.push(`/listings/${id}`), 1500)
@@ -362,7 +362,7 @@ export default function EditListingPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => set('imageUrl', '')}
+                    onClick={() => { set('imageUrl', ''); setImageFile(null) }}
                     className="bg-red-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-red-600"
                   >
                     Remove

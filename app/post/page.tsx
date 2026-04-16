@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { insertListing } from '@/lib/db'
 import { useAuth } from '@/components/AuthProvider'
+import { uploadListingImage } from '@/lib/uploadImage'
 import { formatPrice } from '@/lib/utils'
 import type { Category, Condition } from '@/lib/types'
 
@@ -15,6 +16,7 @@ interface FormData {
 interface Errors { [key: string]: string }
 
 const initialForm: FormData = { title: '', description: '', category: '', condition: '', pricePerDay: '', location: '', imageUrl: '' }
+
 
 const CATEGORIES: { value: Category; label: string; icon: string; desc: string; color: string; active: string }[] = [
   { value: 'trailer', label: 'Trailer', icon: '🚛', desc: 'Utility, dump, car hauler', color: 'border-gray-200 hover:border-blue-300 hover:bg-blue-50',   active: 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' },
@@ -44,6 +46,7 @@ export default function PostPage() {
   const { user, loading } = useAuth()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [form, setForm]           = useState<FormData>(initialForm)
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const [errors, setErrors]       = useState<Errors>({})
   const [submitted, setSubmitted] = useState(false)
   const [photoLoading, setPhotoLoading] = useState(false)
@@ -81,32 +84,14 @@ export default function PostPage() {
     return Object.keys(e).length === 0
   }
 
-  function compressImage(file: File): Promise<string> {
-    return new Promise((resolve) => {
-      const img = new Image()
-      const url = URL.createObjectURL(file)
-      img.onload = () => {
-        const MAX = 1200
-        let { width, height } = img
-        if (width > MAX || height > MAX) {
-          if (width > height) { height = Math.round((height * MAX) / width); width = MAX }
-          else { width = Math.round((width * MAX) / height); height = MAX }
-        }
-        const canvas = document.createElement('canvas')
-        canvas.width = width; canvas.height = height
-        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
-        URL.revokeObjectURL(url)
-        resolve(canvas.toDataURL('image/jpeg', 0.72))
-      }
-      img.src = url
-    })
-  }
-
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     setPhotoLoading(true)
-    set('imageUrl', await compressImage(file))
+    setImageFile(file)
+    // Show a local preview while we wait for upload on submit
+    const preview = URL.createObjectURL(file)
+    set('imageUrl', preview)
     setPhotoLoading(false)
     e.target.value = ''
   }
@@ -114,6 +99,12 @@ export default function PostPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!validate() || !user) return
+    setPhotoLoading(true)
+    let imageUrl: string | undefined
+    if (imageFile) {
+      try { imageUrl = await uploadListingImage(user.id, imageFile) } catch {}
+    }
+    setPhotoLoading(false)
     await insertListing(user.id, {
       title: form.title.trim(),
       description: form.description.trim(),
@@ -121,7 +112,7 @@ export default function PostPage() {
       condition: form.condition as Condition,
       pricePerDay: Number(form.pricePerDay),
       location: form.location.trim(),
-      imageUrl: form.imageUrl.trim() || undefined,
+      imageUrl,
       available: true,
     })
     setSubmitted(true)
@@ -245,7 +236,7 @@ export default function PostPage() {
                 <img src={form.imageUrl} alt="preview" className="w-full h-48 object-cover" />
                 <div className="absolute inset-0 bg-black/0 hover:bg-black/30 transition-colors flex items-center justify-center gap-2 opacity-0 hover:opacity-100">
                   <button type="button" onClick={() => fileInputRef.current?.click()} className="bg-white text-gray-800 text-xs font-semibold px-3 py-1.5 rounded-lg">Replace</button>
-                  <button type="button" onClick={() => set('imageUrl', '')} className="bg-red-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">Remove</button>
+                  <button type="button" onClick={() => { set('imageUrl', ''); setImageFile(null) }} className="bg-red-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg">Remove</button>
                 </div>
               </div>
             ) : (
