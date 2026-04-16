@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { fetchListing, fetchRequestsForListing, patchRequestStatus } from '@/lib/db'
+import { fetchListing, fetchRequestsForListing, patchRequestStatus, fetchMyReviewForRequest } from '@/lib/db'
 import { useAuth } from '@/components/AuthProvider'
 import type { Listing, RentalRequest } from '@/lib/types'
 import { formatDate, formatPrice } from '@/lib/utils'
+import ReviewForm from '@/components/ReviewForm'
 
 const statusStyles: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-700', approved: 'bg-green-100 text-green-700', declined: 'bg-red-100 text-red-600',
@@ -26,15 +27,31 @@ export default function RequestsDashboard() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const { user } = useAuth()
-  const [listing, setListing]   = useState<Listing | null>(null)
-  const [requests, setRequests] = useState<RentalRequest[]>([])
-  const [filter, setFilter]     = useState<'all' | 'pending' | 'approved' | 'declined'>('all')
+  const [listing, setListing]     = useState<Listing | null>(null)
+  const [requests, setRequests]   = useState<RentalRequest[]>([])
+  const [filter, setFilter]       = useState<'all' | 'pending' | 'approved' | 'declined'>('all')
+  const [reviewedMap, setReviewedMap] = useState<Record<string, boolean>>({})
+  const [showReviewFor, setShowReviewFor] = useState<string | null>(null)
 
   useEffect(() => {
     fetchListing(id).then((found) => {
       if (!found) { router.push('/listings'); return }
       setListing(found)
-      fetchRequestsForListing(id).then(setRequests)
+      fetchRequestsForListing(id).then(async (reqs) => {
+        setRequests(reqs)
+        if (!user) return
+        const today = new Date().toISOString().split('T')[0]
+        const map: Record<string, boolean> = {}
+        await Promise.all(
+          reqs
+            .filter((r) => r.status === 'approved' && r.endDate <= today)
+            .map(async (r) => {
+              const rev = await fetchMyReviewForRequest(r.id, user.id)
+              map[r.id] = rev !== null
+            })
+        )
+        setReviewedMap(map)
+      })
     })
   }, [id, router])
 
@@ -126,6 +143,36 @@ export default function RequestsDashboard() {
                       </svg>
                       Message {req.renterName}
                     </Link>
+
+                    {/* Review prompt for completed rentals */}
+                    {req.status === 'approved' && req.endDate <= new Date().toISOString().split('T')[0] && (
+                      reviewedMap[req.id] ? (
+                        <p className="mt-1 text-xs text-green-600 font-medium">✓ Reviewed</p>
+                      ) : showReviewFor === req.id ? (
+                        <div className="mt-3 border-t border-gray-100 pt-3">
+                          <ReviewForm
+                            requestId={req.id}
+                            listingId={id}
+                            reviewerId={user!.id}
+                            revieweeId={req.renterName}
+                            reviewerType="owner"
+                            revieweeName={req.renterName}
+                            listingTitle={listing.title}
+                            onDone={() => {
+                              setShowReviewFor(null)
+                              setReviewedMap((prev) => ({ ...prev, [req.id]: true }))
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setShowReviewFor(req.id)}
+                          className="mt-1 text-sm text-amber-600 hover:underline"
+                        >
+                          ⭐ Review this renter
+                        </button>
+                      )
+                    )}
                   </div>
                 </div>
               )

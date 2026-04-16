@@ -1,5 +1,5 @@
 import { createClient } from './supabase'
-import type { Listing, RentalRequest } from './types'
+import type { Listing, RentalRequest, Review } from './types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const table = (name: string) => (createClient().from(name) as any)
@@ -162,4 +162,66 @@ function rowToRequest(row: any): RentalRequest {
     status: row.status,
     createdAt: row.created_at,
   }
+}
+
+// ── Reviews ───────────────────────────────────────────────
+
+export async function fetchReviewsForListing(listingId: string): Promise<Review[]> {
+  const { data } = await table('reviews')
+    .select('*, profiles(name)')
+    .eq('listing_id', listingId)
+    .order('created_at', { ascending: false })
+  return (data ?? []).map((r: any): Review => ({
+    id: r.id,
+    requestId: r.request_id,
+    listingId: r.listing_id,
+    reviewerId: r.reviewer_id,
+    revieweeId: r.reviewee_id,
+    reviewerType: r.reviewer_type,
+    reviewerName: r.profiles?.name ?? 'Anonymous',
+    rating: r.rating,
+    comment: r.comment ?? '',
+    createdAt: r.created_at,
+  }))
+}
+
+export async function fetchMyReviewForRequest(requestId: string, reviewerId: string): Promise<Review | null> {
+  const { data } = await table('reviews')
+    .select('*')
+    .eq('request_id', requestId)
+    .eq('reviewer_id', reviewerId)
+    .single()
+  if (!data) return null
+  return {
+    id: data.id,
+    requestId: data.request_id,
+    listingId: data.listing_id,
+    reviewerId: data.reviewer_id,
+    revieweeId: data.reviewee_id,
+    reviewerType: data.reviewer_type,
+    reviewerName: '',
+    rating: data.rating,
+    comment: data.comment ?? '',
+    createdAt: data.created_at,
+  }
+}
+
+export async function submitReview(data: {
+  requestId: string
+  listingId: string
+  reviewerId: string
+  revieweeId: string
+  reviewerType: 'renter' | 'owner'
+  rating: number
+  comment: string
+}): Promise<void> {
+  await table('reviews').insert({
+    request_id: data.requestId,
+    listing_id: data.listingId,
+    reviewer_id: data.reviewerId,
+    reviewee_id: data.revieweeId,
+    reviewer_type: data.reviewerType,
+    rating: data.rating,
+    comment: data.comment,
+  })
 }

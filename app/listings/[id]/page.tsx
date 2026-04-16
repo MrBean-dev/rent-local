@@ -3,12 +3,15 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { fetchListing, fetchListings, removeListing, fetchRequestsForListing, hasApprovedRequest } from '@/lib/db'
+import { fetchListing, fetchListings, removeListing, fetchRequestsForListing, hasApprovedRequest, fetchReviewsForListing, fetchMyReviewForRequest } from '@/lib/db'
+import type { Review } from '@/lib/types'
 import { useAuth } from '@/components/AuthProvider'
 import type { Listing, RentalRequest } from '@/lib/types'
 import { formatPrice, formatDate, categoryLabel, conditionLabel } from '@/lib/utils'
 import AvailabilityCalendar from '@/components/AvailabilityCalendar'
 import ListingCard from '@/components/ListingCard'
+import { StarDisplay } from '@/components/StarRating'
+import ReviewForm from '@/components/ReviewForm'
 
 const categoryBadge: Record<string, string> = {
   trailer: 'bg-blue-100 text-blue-700',
@@ -32,9 +35,13 @@ export default function ListingDetailPage() {
   const [otherListings, setOtherListings] = useState<Listing[]>([])
   const [pendingCount, setPendingCount]   = useState(0)
   const [isOwner, setIsOwner]             = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
-  const [copied, setCopied]               = useState(false)
+  const [confirmDelete, setConfirmDelete]   = useState(false)
+  const [copied, setCopied]                 = useState(false)
   const [pickupUnlocked, setPickupUnlocked] = useState(false)
+  const [reviews, setReviews]               = useState<Review[]>([])
+  const [myReview, setMyReview]             = useState<Review | null | undefined>(undefined)
+  const [approvedRequestId, setApprovedRequestId] = useState<string | null>(null)
+  const [showReviewForm, setShowReviewForm] = useState(false)
 
   const handleCopyLink = useCallback(() => {
     navigator.clipboard.writeText(window.location.href).then(() => {
@@ -51,6 +58,7 @@ export default function ListingDetailPage() {
         setRequests(reqs)
         setPendingCount(reqs.filter((r) => r.status === 'pending').length)
       })
+      fetchReviewsForListing(id).then(setReviews)
       fetchListings().then((all) => {
         const others = all.filter(
           (l) => l.id !== id &&
@@ -76,8 +84,29 @@ export default function ListingDetailPage() {
           // Owners always see pickup address; renters see it only if approved
           if (owner) {
             setPickupUnlocked(true)
+            setMyReview(null)
           } else {
-            hasApprovedRequest(user.id, id).then(setPickupUnlocked)
+            hasApprovedRequest(user.id, id).then((approved) => {
+              setPickupUnlocked(approved)
+              if (approved) {
+                // Find the approved request ID for this user
+                fetchRequestsForListing(id).then((reqs) => {
+                  const today = new Date().toISOString().split('T')[0]
+                  const done = reqs.find(
+                    (r) => r.status === 'approved' &&
+                           r.endDate <= today
+                  )
+                  if (done) {
+                    setApprovedRequestId(done.id)
+                    fetchMyReviewForRequest(done.id, user.id).then(setMyReview)
+                  } else {
+                    setMyReview(null)
+                  }
+                })
+              } else {
+                setMyReview(null)
+              }
+            })
           }
         })
     })
@@ -291,6 +320,90 @@ export default function ListingDetailPage() {
             )}
           </div>
         </div>
+
+        {/* Reviews */}
+        {(reviews.length > 0 || myReview === null) && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 bg-gray-50/60">
+              <span className="font-semibold text-gray-900">⭐ Reviews</span>
+              {reviews.length > 0 && (
+                <span className="ml-auto flex items-center gap-1.5">
+                  <StarDisplay
+                    rating={reviews.reduce((s, r) => s + r.rating, 0) / reviews.length}
+                    size="sm"
+                  />
+                  <span className="text-sm font-semibold text-gray-700">
+                    {(reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)}
+                  </span>
+                  <span className="text-xs text-gray-400">({reviews.length})</span>
+                </span>
+              )}
+            </div>
+
+            {/* Leave a review prompt */}
+            {myReview === null && approvedRequestId && !isOwner && (
+              <div className="border-b border-gray-100 px-5 py-4">
+                {showReviewForm ? (
+                  <ReviewForm
+                    requestId={approvedRequestId}
+                    listingId={listing.id}
+                    reviewerId={user!.id}
+                    revieweeId={''}
+                    reviewerType="renter"
+                    revieweeName={listing.contactName}
+                    listingTitle={listing.title}
+                    onDone={() => {
+                      setShowReviewForm(false)
+                      fetchReviewsForListing(id).then(setReviews)
+                      fetchMyReviewForRequest(approvedRequestId, user!.id).then(setMyReview)
+                    }}
+                  />
+                ) : (
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm text-gray-600">You rented this — leave a review?</p>
+                    <button
+                      onClick={() => setShowReviewForm(true)}
+                      className="shrink-0 px-4 py-2 bg-brand-600 text-white text-sm font-semibold rounded-xl hover:bg-brand-700 transition-colors"
+                    >
+                      Write a review
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Review list */}
+            {reviews.length === 0 ? (
+              <div className="px-5 py-8 text-center text-gray-400">
+                <p className="text-sm">No reviews yet.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-50">
+                {reviews.map((r) => (
+                  <div key={r.id} className="px-5 py-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-xs shrink-0">
+                          {r.reviewerName.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">{r.reviewerName}</p>
+                          <p className="text-xs text-gray-400">
+                            {new Date(r.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </p>
+                        </div>
+                      </div>
+                      <StarDisplay rating={r.rating} size="sm" />
+                    </div>
+                    {r.comment && (
+                      <p className="mt-2 text-sm text-gray-600 leading-relaxed">{r.comment}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* More from this owner */}
         {otherListings.length > 0 && (

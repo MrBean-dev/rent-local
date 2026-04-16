@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { Listing } from '@/lib/types'
 import { formatPrice, formatDate } from '@/lib/utils'
+import { StarDisplay } from './StarRating'
 
 const categoryColors: Record<string, string> = {
   trailer: 'bg-blue-100 text-blue-700',
@@ -20,7 +21,7 @@ const conditionDot: Record<string, string> = {
   fair: 'bg-orange-400',
 }
 
-export default function ListingCard({ listing }: { listing: Listing }) {
+export default function ListingCard({ listing, avgRating, reviewCount }: { listing: Listing; avgRating?: number; reviewCount?: number }) {
   return (
     <Link
       href={`/listings/${listing.id}`}
@@ -65,6 +66,13 @@ export default function ListingCard({ listing }: { listing: Listing }) {
             <span className="capitalize">{listing.condition}</span>
           </div>
         </div>
+
+        {avgRating !== undefined && avgRating > 0 && (
+          <div className="mt-2 flex items-center gap-1.5">
+            <StarDisplay rating={avgRating} size="sm" />
+            <span className="text-xs text-gray-500">{avgRating.toFixed(1)} ({reviewCount})</span>
+          </div>
+        )}
 
         <div className="mt-2 flex items-center gap-1 text-xs text-gray-400">
           <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

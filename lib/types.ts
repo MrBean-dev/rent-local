@@ -54,6 +54,19 @@ export interface InspectionPhoto {
   capturedAt: string
 }
 
+export interface Review {
+  id: string
+  requestId: string
+  listingId: string
+  reviewerId: string
+  revieweeId: string
+  reviewerType: 'renter' | 'owner'
+  reviewerName: string
+  rating: number
+  comment: string
+  createdAt: string
+}
+
 export interface RentalInspection {
   id: string
   listingId: string
