@@ -3,15 +3,15 @@
 import { useEffect, useState, useMemo, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { getListings } from '@/lib/storage'
+import { fetchListings } from '@/lib/db'
 import type { Listing, Category } from '@/lib/types'
 import ListingCard from '@/components/ListingCard'
 
 const CATEGORIES: { value: Category | ''; label: string; icon: string }[] = [
-  { value: '',         label: 'All',               icon: '🏷️' },
-  { value: 'trailer',  label: 'Trailers',           icon: '🚛' },
-  { value: 'backhoe',  label: 'Backhoes',           icon: '🚜' },
-  { value: 'tool',     label: 'Tools',              icon: '🔧' },
+  { value: '',        label: 'All',      icon: '🏷️' },
+  { value: 'trailer', label: 'Trailers', icon: '🚛' },
+  { value: 'backhoe', label: 'Backhoes', icon: '🚜' },
+  { value: 'tool',    label: 'Tools',    icon: '🔧' },
 ]
 
 const CONDITIONS = [
@@ -25,16 +25,16 @@ function ListingsContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
 
-  const [listings, setListings]         = useState<Listing[]>([])
-  const [query, setQuery]               = useState(searchParams.get('q') ?? '')
-  const [category, setCategory]         = useState<Category | ''>((searchParams.get('category') as Category) ?? '')
-  const [condition, setCondition]       = useState(searchParams.get('condition') ?? '')
-  const [maxPrice, setMaxPrice]         = useState(searchParams.get('maxPrice') ?? '')
-  const [sortBy, setSortBy]             = useState(searchParams.get('sort') ?? 'newest')
+  const [listings, setListings]             = useState<Listing[]>([])
+  const [query, setQuery]                   = useState(searchParams.get('q') ?? '')
+  const [category, setCategory]             = useState<Category | ''>((searchParams.get('category') as Category) ?? '')
+  const [condition, setCondition]           = useState(searchParams.get('condition') ?? '')
+  const [maxPrice, setMaxPrice]             = useState(searchParams.get('maxPrice') ?? '')
+  const [sortBy, setSortBy]                 = useState(searchParams.get('sort') ?? 'newest')
   const [showUnavailable, setShowUnavailable] = useState(false)
-  const [filtersOpen, setFiltersOpen]   = useState(false)
+  const [filtersOpen, setFiltersOpen]       = useState(false)
 
-  useEffect(() => { setListings(getListings()) }, [])
+  useEffect(() => { fetchListings().then(setListings) }, [])
 
   useEffect(() => {
     const p = new URLSearchParams()
@@ -58,7 +58,7 @@ function ListingsContent() {
         if (sortBy === 'price_asc')  return a.pricePerDay - b.pricePerDay
         if (sortBy === 'price_desc') return b.pricePerDay - a.pricePerDay
         if (sortBy === 'oldest')     return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() // newest
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       })
   }, [listings, query, category, condition, maxPrice, showUnavailable, sortBy])
 
@@ -66,52 +66,27 @@ function ListingsContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Banner */}
       <div className="bg-gradient-to-r from-brand-600 to-orange-600 text-white px-4 py-8">
         <div className="max-w-6xl mx-auto">
           <h1 className="text-2xl sm:text-3xl font-bold mb-4">Browse Equipment</h1>
-          {/* Search bar */}
           <div className="flex gap-2 max-w-2xl">
             <div className="relative flex-1">
               <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
               </svg>
-              <input
-                type="text"
-                placeholder="Search trailers, backhoes, tools..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="w-full pl-10 pr-9 py-3 rounded-xl text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-white/50 shadow-sm text-sm"
-              />
-              {query && (
-                <button onClick={() => setQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">✕</button>
-              )}
+              <input type="text" placeholder="Search trailers, backhoes, tools..." value={query} onChange={(e) => setQuery(e.target.value)} className="w-full pl-10 pr-9 py-3 rounded-xl text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-white/50 shadow-sm text-sm" />
+              {query && <button onClick={() => setQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">✕</button>}
             </div>
-            <button
-              onClick={() => setFiltersOpen(!filtersOpen)}
-              className={`sm:hidden flex items-center gap-2 px-4 py-3 rounded-xl font-medium text-sm transition-colors shadow-sm ${
-                filtersOpen || activeFilterCount > 0 ? 'bg-white text-brand-600' : 'bg-white/20 text-white border border-white/30'
-              }`}
-            >
+            <button onClick={() => setFiltersOpen(!filtersOpen)} className={`sm:hidden flex items-center gap-2 px-4 py-3 rounded-xl font-medium text-sm transition-colors shadow-sm ${filtersOpen || activeFilterCount > 0 ? 'bg-white text-brand-600' : 'bg-white/20 text-white border border-white/30'}`}>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
               </svg>
               {activeFilterCount > 0 ? `Filters (${activeFilterCount})` : 'Filters'}
             </button>
           </div>
-
-          {/* Category pills in banner */}
           <div className="flex flex-wrap gap-2 mt-4">
             {CATEGORIES.map((c) => (
-              <button
-                key={c.value}
-                onClick={() => setCategory(c.value as Category | '')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-                  category === c.value
-                    ? 'bg-white text-brand-600 shadow-sm'
-                    : 'bg-white/20 text-white hover:bg-white/30'
-                }`}
-              >
+              <button key={c.value} onClick={() => setCategory(c.value as Category | '')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${category === c.value ? 'bg-white text-brand-600 shadow-sm' : 'bg-white/20 text-white hover:bg-white/30'}`}>
                 <span>{c.icon}</span>{c.label}
               </button>
             ))}
@@ -119,10 +94,7 @@ function ListingsContent() {
         </div>
       </div>
 
-      {/* Body */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex gap-6">
-
-        {/* Sidebar */}
         <aside className={`${filtersOpen ? 'block' : 'hidden'} sm:block w-full sm:w-56 shrink-0`}>
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/60">
@@ -133,43 +105,25 @@ function ListingsContent() {
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Condition</p>
                 <div className="space-y-1">
                   {CONDITIONS.map((c) => (
-                    <button
-                      key={c.value}
-                      onClick={() => setCondition(c.value)}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                        condition === c.value ? 'bg-brand-50 text-brand-700 font-medium' : 'text-gray-600 hover:bg-gray-100'
-                      }`}
-                    >
+                    <button key={c.value} onClick={() => setCondition(c.value)} className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${condition === c.value ? 'bg-brand-50 text-brand-700 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}>
                       {c.label}
                     </button>
                   ))}
                 </div>
               </div>
-
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Max Price / Day</p>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-                  <input
-                    type="number"
-                    placeholder="Any"
-                    value={maxPrice}
-                    onChange={(e) => setMaxPrice(e.target.value)}
-                    className="w-full pl-7 pr-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200"
-                  />
+                  <input type="number" placeholder="Any" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} className="w-full pl-7 pr-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200" />
                 </div>
               </div>
-
               <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
                 <input type="checkbox" checked={showUnavailable} onChange={(e) => setShowUnavailable(e.target.checked)} className="rounded text-brand-600" />
                 Show unavailable
               </label>
-
               {activeFilterCount > 0 && (
-                <button
-                  onClick={() => { setCategory(''); setCondition(''); setMaxPrice('') }}
-                  className="w-full py-2 text-sm text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                >
+                <button onClick={() => { setCategory(''); setCondition(''); setMaxPrice('') }} className="w-full py-2 text-sm text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                   Clear all filters
                 </button>
               )}
@@ -177,18 +131,13 @@ function ListingsContent() {
           </div>
         </aside>
 
-        {/* Results */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-4 gap-3">
             <p className="text-sm text-gray-500">
               <span className="font-semibold text-gray-900">{filtered.length}</span> {filtered.length === 1 ? 'listing' : 'listings'} found
               {query && <span> for "<strong>{query}</strong>"</span>}
             </p>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-200 shrink-0"
-            >
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-200 shrink-0">
               <option value="newest">Newest first</option>
               <option value="oldest">Oldest first</option>
               <option value="price_asc">Price: low to high</option>
@@ -202,12 +151,7 @@ function ListingsContent() {
               <p className="font-semibold text-gray-700">No listings match your search.</p>
               <p className="text-sm text-gray-400 mt-1">Try different keywords or clear your filters.</p>
               {activeFilterCount > 0 && (
-                <button
-                  onClick={() => { setCategory(''); setCondition(''); setMaxPrice(''); setQuery('') }}
-                  className="mt-4 text-sm text-brand-600 hover:underline"
-                >
-                  Clear all
-                </button>
+                <button onClick={() => { setCategory(''); setCondition(''); setMaxPrice(''); setQuery('') }} className="mt-4 text-sm text-brand-600 hover:underline">Clear all</button>
               )}
             </div>
           ) : (

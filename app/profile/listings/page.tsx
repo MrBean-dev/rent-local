@@ -2,64 +2,56 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { getListings, deleteListing, updateListing } from '@/lib/storage'
-import { getProfile } from '@/lib/profile'
-import { getRequestsForListing } from '@/lib/requests'
+import { fetchMyListings, removeListing, patchListing } from '@/lib/db'
+import { useAuth } from '@/components/AuthProvider'
+import { fetchRequestsForListing } from '@/lib/db'
 import type { Listing } from '@/lib/types'
 import { formatPrice, formatDate } from '@/lib/utils'
 
 const categoryBadge: Record<string, string> = {
-  trailer: 'bg-blue-100 text-blue-700',
-  backhoe: 'bg-orange-100 text-orange-700',
-  tool:    'bg-green-100 text-green-700',
+  trailer: 'bg-blue-100 text-blue-700', backhoe: 'bg-orange-100 text-orange-700', tool: 'bg-green-100 text-green-700',
 }
-
-const categoryIcon: Record<string, string> = {
-  trailer: '🚛', backhoe: '🚜', tool: '🔧',
-}
+const categoryIcon: Record<string, string> = { trailer: '🚛', backhoe: '🚜', tool: '🔧' }
 
 export default function MyListingsPage() {
+  const { user, loading } = useAuth()
   const [listings, setListings]         = useState<Listing[]>([])
   const [pendingMap, setPendingMap]     = useState<Record<string, number>>({})
-  const [hasProfile, setHasProfile]     = useState(true)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
-  function load() {
-    const profile = getProfile()
-    if (!profile) { setHasProfile(false); return }
-    const all = getListings()
-    const mine = all.filter((l) => l.contactName.toLowerCase() === profile.name.toLowerCase())
+  async function load(uid: string) {
+    const mine = await fetchMyListings(uid)
     setListings(mine)
     const map: Record<string, number> = {}
-    mine.forEach((l) => {
-      map[l.id] = getRequestsForListing(l.id).filter((r) => r.status === 'pending').length
-    })
+    await Promise.all(mine.map(async (l) => {
+      const reqs = await fetchRequestsForListing(l.id)
+      map[l.id] = reqs.filter((r) => r.status === 'pending').length
+    }))
     setPendingMap(map)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { if (user) load(user.id) }, [user])
 
-  function handleDelete(id: string) {
-    deleteListing(id)
+  async function handleDelete(id: string) {
+    await removeListing(id)
     setConfirmDelete(null)
-    load()
+    if (user) load(user.id)
   }
 
-  function handleToggleAvailability(listing: Listing) {
-    updateListing({ ...listing, available: !listing.available })
-    load()
+  async function handleToggle(listing: Listing) {
+    await patchListing(listing.id, { available: !listing.available })
+    if (user) load(user.id)
   }
 
-  if (!hasProfile) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4 px-4 text-center">
-        <p className="text-4xl">👤</p>
-        <p className="font-semibold text-gray-700">No profile yet</p>
-        <p className="text-sm text-gray-500">Create a profile to track your listings.</p>
-        <Link href="/profile" className="px-5 py-3 bg-brand-600 text-white font-semibold rounded-xl hover:bg-brand-700 transition-colors">Create Profile</Link>
-      </div>
-    )
-  }
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-400">Loading…</div>
+
+  if (!user) return (
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4 px-4 text-center">
+      <p className="text-4xl">👤</p>
+      <p className="font-semibold text-gray-700">Sign in to see your listings</p>
+      <Link href="/login" className="px-5 py-3 bg-brand-600 text-white font-semibold rounded-xl hover:bg-brand-700 transition-colors">Sign in</Link>
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -74,9 +66,7 @@ export default function MyListingsPage() {
               <h1 className="text-2xl font-bold">My Listings</h1>
               <p className="text-orange-100 text-sm mt-1">{listings.length} listing{listings.length !== 1 ? 's' : ''} posted</p>
             </div>
-            <Link href="/post" className="shrink-0 px-4 py-2.5 bg-white text-brand-600 text-sm font-semibold rounded-xl hover:bg-orange-50 transition-colors shadow-sm">
-              + New Listing
-            </Link>
+            <Link href="/post" className="shrink-0 px-4 py-2.5 bg-white text-brand-600 text-sm font-semibold rounded-xl hover:bg-orange-50 transition-colors shadow-sm">+ New Listing</Link>
           </div>
         </div>
       </div>
@@ -93,14 +83,9 @@ export default function MyListingsPage() {
             {listings.map((l) => (
               <div key={l.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="flex gap-4 p-4">
-                  {/* Thumbnail */}
                   <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-100 shrink-0 flex items-center justify-center text-3xl">
-                    {l.imageUrl
-                      ? <img src={l.imageUrl} alt={l.title} className="w-full h-full object-cover" />
-                      : <span>{categoryIcon[l.category]}</span>
-                    }
+                    {l.imageUrl ? <img src={l.imageUrl} alt={l.title} className="w-full h-full object-cover" /> : <span>{categoryIcon[l.category]}</span>}
                   </div>
-                  {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <div>
@@ -118,26 +103,18 @@ export default function MyListingsPage() {
                     </div>
                   </div>
                 </div>
-                {/* Footer actions */}
                 <div className="border-t border-gray-50 px-4 py-2.5 flex items-center gap-3 flex-wrap">
                   <Link href={`/listings/${l.id}`} className="text-sm text-gray-500 hover:text-gray-800 transition-colors">View</Link>
                   <span className="text-gray-200">·</span>
                   <Link href={`/listings/${l.id}/edit`} className="text-sm text-brand-600 hover:underline">Edit</Link>
                   <span className="text-gray-200">·</span>
-                  <button
-                    onClick={() => handleToggleAvailability(l)}
-                    className={`text-sm hover:underline ${l.available ? 'text-yellow-600' : 'text-green-600'}`}
-                  >
+                  <button onClick={() => handleToggle(l)} className={`text-sm hover:underline ${l.available ? 'text-yellow-600' : 'text-green-600'}`}>
                     {l.available ? 'Mark unavailable' : 'Mark available'}
                   </button>
                   <span className="text-gray-200">·</span>
                   <Link href={`/listings/${l.id}/requests`} className="text-sm text-brand-600 hover:underline flex items-center gap-1">
                     Requests
-                    {pendingMap[l.id] > 0 && (
-                      <span className="bg-brand-600 text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                        {pendingMap[l.id]}
-                      </span>
-                    )}
+                    {pendingMap[l.id] > 0 && <span className="bg-brand-600 text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">{pendingMap[l.id]}</span>}
                   </Link>
                   <span className="text-gray-200 ml-auto">·</span>
                   {confirmDelete === l.id ? (
@@ -147,9 +124,7 @@ export default function MyListingsPage() {
                       <button onClick={() => setConfirmDelete(null)} className="text-xs text-gray-400 hover:underline">No</button>
                     </div>
                   ) : (
-                    <button onClick={() => setConfirmDelete(l.id)} className="text-sm text-red-400 hover:text-red-600 hover:underline">
-                      Delete
-                    </button>
+                    <button onClick={() => setConfirmDelete(l.id)} className="text-sm text-red-400 hover:text-red-600 hover:underline">Delete</button>
                   )}
                 </div>
               </div>

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { getListing, updateListing } from '@/lib/storage'
+import { fetchListing, patchListing } from '@/lib/db'
 import { generateId, formatPrice } from '@/lib/utils'
 import type { Category, Condition, Listing } from '@/lib/types'
 
@@ -58,7 +58,7 @@ export default function EditListingPage() {
   const [photoLoading, setPhotoLoading] = useState(false)
 
   useEffect(() => {
-    const listing = getListing(id)
+    fetchListing(id).then((listing) => {
     if (!listing) return
     setOriginal(listing)
     setForm({
@@ -73,6 +73,7 @@ export default function EditListingPage() {
       contactEmail: listing.contactEmail,
       imageUrl:     listing.imageUrl ?? '',
       available:    listing.available,
+    })
     })
   }, [id])
 
@@ -127,20 +128,16 @@ export default function EditListingPage() {
     e.target.value = ''
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
     if (!form || !original || !validate()) return
-    updateListing({
-      ...original,
+    await patchListing(id, {
       title:        form.title.trim(),
       description:  form.description.trim(),
       category:     form.category as Category,
       condition:    form.condition as Condition,
-      pricePerDay:  Number(form.pricePerDay),
+      price_per_day: Number(form.pricePerDay),
       location:     form.location.trim(),
-      contactName:  form.contactName.trim(),
-      contactPhone: form.contactPhone.trim(),
-      contactEmail: form.contactEmail.trim(),
-      imageUrl:     form.imageUrl.trim() || undefined,
+      image_url:    form.imageUrl.trim() || null,
       available:    form.available,
     })
     setSaved(true)

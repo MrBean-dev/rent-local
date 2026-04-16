@@ -3,9 +3,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { getListing, getListings, deleteListing } from '@/lib/storage'
-import { getRequestsForListing } from '@/lib/requests'
-import { getProfile } from '@/lib/profile'
+import { fetchListing, fetchListings, removeListing, fetchRequestsForListing } from '@/lib/db'
+import { useAuth } from '@/components/AuthProvider'
 import type { Listing, RentalRequest } from '@/lib/types'
 import { formatPrice, formatDate, categoryLabel, conditionLabel } from '@/lib/utils'
 import AvailabilityCalendar from '@/components/AvailabilityCalendar'
@@ -16,22 +15,18 @@ const categoryBadge: Record<string, string> = {
   backhoe: 'bg-orange-100 text-orange-700',
   tool:    'bg-green-100 text-green-700',
 }
-
 const conditionDot: Record<string, string> = {
-  excellent: 'bg-green-500',
-  good:      'bg-yellow-400',
-  fair:      'bg-orange-400',
+  excellent: 'bg-green-500', good: 'bg-yellow-400', fair: 'bg-orange-400',
 }
-
 const conditionText: Record<string, string> = {
-  excellent: 'text-green-600',
-  good:      'text-yellow-600',
-  fair:      'text-orange-500',
+  excellent: 'text-green-600', good: 'text-yellow-600', fair: 'text-orange-500',
 }
 
 export default function ListingDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
+  const { user } = useAuth()
+
   const [listing, setListing]             = useState<Listing | null | undefined>(undefined)
   const [requests, setRequests]           = useState<RentalRequest[]>([])
   const [otherListings, setOtherListings] = useState<Listing[]>([])
@@ -48,30 +43,53 @@ export default function ListingDetailPage() {
   }, [])
 
   useEffect(() => {
-    const found = getListing(id)
-    setListing(found ?? null)
-    if (found) {
-      const reqs = getRequestsForListing(id)
-      setRequests(reqs)
-      setPendingCount(reqs.filter((r) => r.status === 'pending').length)
-      const profile = getProfile()
-      if (profile) setIsOwner(profile.name.toLowerCase() === found.contactName.toLowerCase())
-      const others = getListings().filter(
-        (l) => l.id !== id && l.contactName.toLowerCase() === found.contactName.toLowerCase() && l.available
-      )
-      setOtherListings(others.slice(0, 3))
-    }
+    fetchListing(id).then((found) => {
+      setListing(found ?? null)
+      if (!found) return
+      fetchRequestsForListing(id).then((reqs) => {
+        setRequests(reqs)
+        setPendingCount(reqs.filter((r) => r.status === 'pending').length)
+      })
+      fetchListings().then((all) => {
+        const others = all.filter(
+          (l) => l.id !== id &&
+                 l.contactName.toLowerCase() === found.contactName.toLowerCase() &&
+                 l.available
+        )
+        setOtherListings(others.slice(0, 3))
+      })
+    })
   }, [id])
 
-  function handleDelete() {
-    deleteListing(id)
+  // Check ownership via auth user — we store owner_id server-side, so we
+  // compare by fetching the raw row. For now we use a client-side check via
+  // the Supabase query that only returns the listing if the user owns it.
+  useEffect(() => {
+    if (!user || !listing) return
+    // listing.contactName comes from the profile joined to the listing's owner_id
+    // We mark as owner if the logged-in user's profile name matches
+    setIsOwner(true) // Supabase RLS ensures only owner can delete/edit; show controls if logged in and name matches
+    // More precise: re-fetch to confirm ownership
+    import('@/lib/supabase').then(({ createClient }) => {
+      createClient()
+        .from('listings' as any)
+        .select('owner_id')
+        .eq('id', id)
+        .single()
+        .then(({ data }: any) => {
+          setIsOwner(data?.owner_id === user.id)
+        })
+    })
+  }, [user, listing, id])
+
+  async function handleDelete() {
+    await removeListing(id)
     router.push('/profile/listings')
   }
 
   if (listing === undefined) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400">Loading…</div>
   )
-
   if (listing === null) return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-3">
       <p className="text-4xl">🤔</p>
@@ -82,8 +100,6 @@ export default function ListingDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-
-      {/* Banner */}
       <div className="bg-gradient-to-r from-brand-600 to-orange-600 text-white px-4 pt-6 pb-10">
         <div className="max-w-3xl mx-auto">
           <Link href="/listings" className="inline-flex items-center gap-1 text-sm text-orange-200 hover:text-white mb-4">
@@ -115,24 +131,11 @@ export default function ListingDetailPage() {
                 <span className={`w-2 h-2 rounded-full ${conditionDot[listing.condition]}`} />
                 <span className="capitalize">{conditionLabel(listing.condition)}</span>
               </div>
-              <button
-                onClick={handleCopyLink}
-                className="mt-2 flex items-center gap-1.5 text-xs text-orange-200 hover:text-white transition-colors ml-auto"
-              >
+              <button onClick={handleCopyLink} className="mt-2 flex items-center gap-1.5 text-xs text-orange-200 hover:text-white transition-colors ml-auto">
                 {copied ? (
-                  <>
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                    </svg>
-                    Copied!
-                  </>
+                  <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>Copied!</>
                 ) : (
-                  <>
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    Copy link
-                  </>
+                  <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>Copy link</>
                 )}
               </button>
             </div>
@@ -140,10 +143,9 @@ export default function ListingDetailPage() {
         </div>
       </div>
 
-      {/* Cards */}
       <div className="max-w-3xl mx-auto px-4 sm:px-6 -mt-4 pb-10 space-y-4">
 
-        {/* Photo card */}
+        {/* Photo */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="relative h-64 sm:h-80 bg-gray-100">
             {listing.imageUrl ? (
@@ -201,15 +203,8 @@ export default function ListingDetailPage() {
             <span className="font-semibold text-amber-900">📷 Renting this equipment?</span>
           </div>
           <div className="px-5 py-4 flex items-center justify-between gap-4">
-            <p className="text-sm text-amber-700">
-              Document its condition before you take it — protects you if damage is disputed later.
-            </p>
-            <Link
-              href={`/listings/${listing.id}/inspect`}
-              className="shrink-0 px-4 py-2.5 bg-amber-600 text-white text-sm font-semibold rounded-xl hover:bg-amber-700 transition-colors"
-            >
-              Inspect
-            </Link>
+            <p className="text-sm text-amber-700">Document its condition before you take it — protects you if damage is disputed later.</p>
+            <Link href={`/listings/${listing.id}/inspect`} className="shrink-0 px-4 py-2.5 bg-amber-600 text-white text-sm font-semibold rounded-xl hover:bg-amber-700 transition-colors">Inspect</Link>
           </div>
         </div>
 
@@ -217,34 +212,14 @@ export default function ListingDetailPage() {
         {isOwner && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4 flex items-center gap-3">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide mr-auto">Your listing</span>
-            <Link
-              href={`/listings/${listing.id}/edit`}
-              className="px-4 py-2 text-sm font-semibold text-brand-600 border border-brand-200 rounded-xl hover:bg-brand-50 transition-colors"
-            >
-              Edit
-            </Link>
+            <Link href={`/listings/${listing.id}/edit`} className="px-4 py-2 text-sm font-semibold text-brand-600 border border-brand-200 rounded-xl hover:bg-brand-50 transition-colors">Edit</Link>
             {!confirmDelete ? (
-              <button
-                onClick={() => setConfirmDelete(true)}
-                className="px-4 py-2 text-sm font-semibold text-red-500 border border-red-200 rounded-xl hover:bg-red-50 transition-colors"
-              >
-                Delete
-              </button>
+              <button onClick={() => setConfirmDelete(true)} className="px-4 py-2 text-sm font-semibold text-red-500 border border-red-200 rounded-xl hover:bg-red-50 transition-colors">Delete</button>
             ) : (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500">Sure?</span>
-                <button
-                  onClick={handleDelete}
-                  className="px-3 py-1.5 text-xs font-semibold bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-                >
-                  Yes, delete
-                </button>
-                <button
-                  onClick={() => setConfirmDelete(false)}
-                  className="px-3 py-1.5 text-xs font-semibold text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
+                <button onClick={handleDelete} className="px-3 py-1.5 text-xs font-semibold bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">Yes, delete</button>
+                <button onClick={() => setConfirmDelete(false)} className="px-3 py-1.5 text-xs font-semibold text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">Cancel</button>
               </div>
             )}
           </div>
@@ -254,20 +229,14 @@ export default function ListingDetailPage() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 bg-gray-50/60">
             <span className="font-semibold text-gray-900">👤 {listing.contactName}</span>
-            <Link
-              href={`/listings/${listing.id}/requests`}
-              className="ml-auto text-xs text-brand-600 hover:underline flex items-center gap-1"
-            >
-              Manage requests
-              {pendingCount > 0 && (
-                <span className="bg-brand-600 text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                  {pendingCount}
-                </span>
-              )}
-            </Link>
+            {isOwner && (
+              <Link href={`/listings/${listing.id}/requests`} className="ml-auto text-xs text-brand-600 hover:underline flex items-center gap-1">
+                Manage requests
+                {pendingCount > 0 && <span className="bg-brand-600 text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">{pendingCount}</span>}
+              </Link>
+            )}
           </div>
           <div className="px-5 py-5 space-y-4">
-            {/* Locked contact info */}
             <div className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3">
               <svg className="w-5 h-5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -277,18 +246,18 @@ export default function ListingDetailPage() {
                 <p className="text-xs text-gray-400 mt-0.5">Revealed once the owner approves your request.</p>
               </div>
             </div>
-
-            {listing.available ? (
-              <Link
-                href={`/listings/${listing.id}/request`}
-                className="block w-full py-4 bg-brand-600 text-white font-bold text-center rounded-2xl hover:bg-brand-700 active:scale-[0.98] transition-all shadow-lg shadow-brand-600/20"
-              >
+            {!user ? (
+              <Link href="/login" className="block w-full py-4 bg-brand-600 text-white font-bold text-center rounded-2xl hover:bg-brand-700 transition-all shadow-lg shadow-brand-600/20">
+                Sign in to Request →
+              </Link>
+            ) : listing.available && !isOwner ? (
+              <Link href={`/listings/${listing.id}/request`} className="block w-full py-4 bg-brand-600 text-white font-bold text-center rounded-2xl hover:bg-brand-700 active:scale-[0.98] transition-all shadow-lg shadow-brand-600/20">
                 Request to Rent →
               </Link>
+            ) : isOwner ? (
+              <div className="w-full py-4 bg-gray-100 text-gray-400 font-bold text-center rounded-2xl">This is your listing</div>
             ) : (
-              <div className="w-full py-4 bg-gray-100 text-gray-400 font-bold text-center rounded-2xl cursor-not-allowed">
-                Currently Unavailable
-              </div>
+              <div className="w-full py-4 bg-gray-100 text-gray-400 font-bold text-center rounded-2xl cursor-not-allowed">Currently Unavailable</div>
             )}
           </div>
         </div>
@@ -300,9 +269,7 @@ export default function ListingDetailPage() {
               <span className="font-semibold text-gray-900">🏷️ More from {listing.contactName}</span>
             </div>
             <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {otherListings.map((l) => (
-                <ListingCard key={l.id} listing={l} />
-              ))}
+              {otherListings.map((l) => <ListingCard key={l.id} listing={l} />)}
             </div>
           </div>
         )}

@@ -3,27 +3,21 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { getListing } from '@/lib/storage'
-import { getRequestsForListing, updateRequestStatus } from '@/lib/requests'
+import { fetchListing, fetchRequestsForListing, patchRequestStatus } from '@/lib/db'
+import { useAuth } from '@/components/AuthProvider'
 import type { Listing, RentalRequest } from '@/lib/types'
 import { formatDate, formatPrice } from '@/lib/utils'
 
 const statusStyles: Record<string, string> = {
-  pending:  'bg-yellow-100 text-yellow-700',
-  approved: 'bg-green-100 text-green-700',
-  declined: 'bg-red-100 text-red-600',
+  pending: 'bg-yellow-100 text-yellow-700', approved: 'bg-green-100 text-green-700', declined: 'bg-red-100 text-red-600',
 }
-
 const statusLabel: Record<string, string> = {
-  pending: 'Pending',
-  approved: 'Approved',
-  declined: 'Declined',
+  pending: 'Pending', approved: 'Approved', declined: 'Declined',
 }
 
 function daysBetween(start: string, end: string) {
   return Math.max(1, Math.round((new Date(end).getTime() - new Date(start).getTime()) / 86400000) + 1)
 }
-
 function formatDateShort(iso: string) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
@@ -31,19 +25,21 @@ function formatDateShort(iso: string) {
 export default function RequestsDashboard() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
-  const [listing, setListing] = useState<Listing | null>(null)
+  const { user } = useAuth()
+  const [listing, setListing]   = useState<Listing | null>(null)
   const [requests, setRequests] = useState<RentalRequest[]>([])
-  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'declined'>('all')
+  const [filter, setFilter]     = useState<'all' | 'pending' | 'approved' | 'declined'>('all')
 
   useEffect(() => {
-    const found = getListing(id)
-    if (!found) { router.push('/listings'); return }
-    setListing(found)
-    setRequests(getRequestsForListing(id))
+    fetchListing(id).then((found) => {
+      if (!found) { router.push('/listings'); return }
+      setListing(found)
+      fetchRequestsForListing(id).then(setRequests)
+    })
   }, [id, router])
 
-  function setStatus(reqId: string, status: RentalRequest['status']) {
-    updateRequestStatus(reqId, status)
+  async function setStatus(reqId: string, status: RentalRequest['status']) {
+    await patchRequestStatus(reqId, status)
     setRequests((prev) => prev.map((r) => r.id === reqId ? { ...r, status } : r))
   }
 
@@ -53,20 +49,16 @@ export default function RequestsDashboard() {
     approved: requests.filter((r) => r.status === 'approved').length,
     declined: requests.filter((r) => r.status === 'declined').length,
   }
-
   const visible = filter === 'all' ? requests : requests.filter((r) => r.status === filter)
 
   if (!listing) return null
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-5">
           <Link href={`/listings/${listing.id}`} className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 mb-3">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             Back to listing
           </Link>
           <div className="flex items-start justify-between gap-4">
@@ -76,30 +68,11 @@ export default function RequestsDashboard() {
             </div>
             <span className="shrink-0 text-sm font-medium text-brand-600">{formatPrice(listing.pricePerDay)}</span>
           </div>
-
-          {/* Filter tabs */}
           <div className="flex gap-1 mt-4 border-b border-gray-100 -mb-5">
             {(['all', 'pending', 'approved', 'declined'] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => setFilter(s)}
-                className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors capitalize ${
-                  filter === s
-                    ? 'border-brand-600 text-brand-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-800'
-                }`}
-              >
+              <button key={s} onClick={() => setFilter(s)} className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors capitalize ${filter === s ? 'border-brand-600 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-800'}`}>
                 {s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1)}
-                {counts[s] > 0 && (
-                  <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-xs font-bold ${
-                    s === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                    s === 'approved' ? 'bg-green-100 text-green-700' :
-                    s === 'declined' ? 'bg-red-100 text-red-600' :
-                    'bg-gray-100 text-gray-600'
-                  }`}>
-                    {counts[s]}
-                  </span>
-                )}
+                {counts[s] > 0 && <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-xs font-bold ${s === 'pending' ? 'bg-yellow-100 text-yellow-700' : s === 'approved' ? 'bg-green-100 text-green-700' : s === 'declined' ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-600'}`}>{counts[s]}</span>}
               </button>
             ))}
           </div>
@@ -110,92 +83,47 @@ export default function RequestsDashboard() {
         {visible.length === 0 ? (
           <div className="text-center py-20">
             <p className="text-4xl mb-3">📭</p>
-            <p className="font-medium text-gray-600">
-              {filter === 'all' ? 'No requests yet.' : `No ${filter} requests.`}
-            </p>
-            {filter === 'all' && (
-              <p className="text-sm text-gray-400 mt-1">
-                Share your listing link so renters can find it.
-              </p>
-            )}
+            <p className="font-medium text-gray-600">{filter === 'all' ? 'No requests yet.' : `No ${filter} requests.`}</p>
+            {filter === 'all' && <p className="text-sm text-gray-400 mt-1">Share your listing link so renters can find it.</p>}
           </div>
         ) : (
           <div className="space-y-4">
-            {visible
-              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-              .map((req) => {
-                const days = daysBetween(req.startDate, req.endDate)
-                const total = days * listing.pricePerDay
-                return (
-                  <div key={req.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                    {/* Card header */}
-                    <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-sm shrink-0">
-                          {req.renterName.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-900">{req.renterName}</p>
-                          <p className="text-xs text-gray-400">{formatDate(req.createdAt)}</p>
-                        </div>
+            {visible.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((req) => {
+              const days = daysBetween(req.startDate, req.endDate)
+              const total = days * listing.pricePerDay
+              return (
+                <div key={req.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-sm shrink-0">{req.renterName.charAt(0).toUpperCase()}</div>
+                      <div>
+                        <p className="font-semibold text-gray-900">{req.renterName}</p>
+                        <p className="text-xs text-gray-400">{formatDate(req.createdAt)}</p>
                       </div>
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusStyles[req.status]}`}>
-                        {statusLabel[req.status]}
-                      </span>
                     </div>
-
-                    {/* Body */}
-                    <div className="px-5 py-4 space-y-3">
-                      {/* Dates + cost */}
-                      <div className="flex flex-wrap gap-3">
-                        <div className="bg-gray-50 rounded-xl px-4 py-2.5 flex items-center gap-2 text-sm">
-                          <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          <span className="text-gray-700 font-medium">{formatDateShort(req.startDate)} – {formatDateShort(req.endDate)}</span>
-                          <span className="text-gray-400">({days} day{days !== 1 ? 's' : ''})</span>
-                        </div>
-                        <div className="bg-brand-50 rounded-xl px-4 py-2.5 text-sm font-bold text-brand-700">
-                          ${total.toLocaleString()} est.
-                        </div>
-                      </div>
-
-                      {/* Message */}
-                      {req.message && (
-                        <div className="bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-600 italic">
-                          "{req.message}"
-                        </div>
-                      )}
-
-                      {/* Actions */}
-                      {req.status === 'pending' && (
-                        <div className="flex gap-2 pt-1">
-                          <button
-                            onClick={() => setStatus(req.id, 'approved')}
-                            className="flex-1 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition-colors"
-                          >
-                            ✓ Approve
-                          </button>
-                          <button
-                            onClick={() => setStatus(req.id, 'declined')}
-                            className="flex-1 py-2.5 border border-red-300 text-red-600 text-sm font-semibold rounded-xl hover:bg-red-50 transition-colors"
-                          >
-                            ✕ Decline
-                          </button>
-                        </div>
-                      )}
-                      {req.status !== 'pending' && (
-                        <button
-                          onClick={() => setStatus(req.id, 'pending')}
-                          className="text-xs text-gray-400 hover:text-gray-600 hover:underline"
-                        >
-                          Reset to pending
-                        </button>
-                      )}
-                    </div>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusStyles[req.status]}`}>{statusLabel[req.status]}</span>
                   </div>
-                )
-              })}
+                  <div className="px-5 py-4 space-y-3">
+                    <div className="flex flex-wrap gap-3">
+                      <div className="bg-gray-50 rounded-xl px-4 py-2.5 flex items-center gap-2 text-sm">
+                        <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        <span className="text-gray-700 font-medium">{formatDateShort(req.startDate)} – {formatDateShort(req.endDate)}</span>
+                        <span className="text-gray-400">({days} day{days !== 1 ? 's' : ''})</span>
+                      </div>
+                      <div className="bg-brand-50 rounded-xl px-4 py-2.5 text-sm font-bold text-brand-700">${total.toLocaleString()} est.</div>
+                    </div>
+                    {req.message && <div className="bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-600 italic">"{req.message}"</div>}
+                    {req.status === 'pending' && (
+                      <div className="flex gap-2 pt-1">
+                        <button onClick={() => setStatus(req.id, 'approved')} className="flex-1 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition-colors">✓ Approve</button>
+                        <button onClick={() => setStatus(req.id, 'declined')} className="flex-1 py-2.5 border border-red-300 text-red-600 text-sm font-semibold rounded-xl hover:bg-red-50 transition-colors">✕ Decline</button>
+                      </div>
+                    )}
+                    {req.status !== 'pending' && <button onClick={() => setStatus(req.id, 'pending')} className="text-xs text-gray-400 hover:text-gray-600 hover:underline">Reset to pending</button>}
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>

@@ -3,10 +3,12 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTheme } from './ThemeProvider'
+import { useAuth } from './AuthProvider'
 
 export default function Navbar() {
   const pathname = usePathname()
   const { theme, toggle } = useTheme()
+  const { user, signOut } = useAuth()
 
   const links = [
     { href: '/', label: 'Home' },
@@ -52,12 +54,31 @@ export default function Navbar() {
               </svg>
             )}
           </button>
-          <Link
-            href="/post"
-            className="ml-2 px-4 py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 transition-colors"
-          >
-            + List Equipment
-          </Link>
+          {user ? (
+            <div className="flex items-center gap-2 ml-2">
+              <Link href="/profile" className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                {user.email?.split('@')[0]}
+              </Link>
+              <button
+                onClick={signOut}
+                className="px-3 py-2 rounded-lg text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              >
+                Sign out
+              </button>
+              <Link href="/post" className="px-4 py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 transition-colors">
+                + List Equipment
+              </Link>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 ml-2">
+              <Link href="/login" className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                Sign in
+              </Link>
+              <Link href="/register" className="px-4 py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 transition-colors">
+                Get started
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* Mobile: show active page title + dark toggle */}

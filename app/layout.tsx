@@ -5,6 +5,7 @@ import Navbar from '@/components/Navbar'
 import BottomNav from '@/components/BottomNav'
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar'
 import { ThemeProvider } from '@/components/ThemeProvider'
+import { AuthProvider } from '@/components/AuthProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider>
+          <AuthProvider>
           <Navbar />
           {/* pb-20 on mobile leaves room for the bottom nav bar */}
           <main className="min-h-screen pb-20 sm:pb-0">{children}</main>
@@ -44,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </footer>
           <BottomNav />
           <ServiceWorkerRegistrar />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
