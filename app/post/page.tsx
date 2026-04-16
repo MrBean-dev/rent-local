@@ -11,11 +11,11 @@ import type { Category, Condition } from '@/lib/types'
 
 interface FormData {
   title: string; description: string; category: Category | ''; condition: Condition | ''
-  pricePerDay: string; location: string; imageUrl: string
+  pricePerDay: string; location: string; pickupAddress: string; imageUrl: string
 }
 interface Errors { [key: string]: string }
 
-const initialForm: FormData = { title: '', description: '', category: '', condition: '', pricePerDay: '', location: '', imageUrl: '' }
+const initialForm: FormData = { title: '', description: '', category: '', condition: '', pricePerDay: '', location: '', pickupAddress: '', imageUrl: '' }
 
 
 const CATEGORIES: { value: Category; label: string; icon: string; desc: string; color: string; active: string }[] = [
@@ -112,6 +112,7 @@ export default function PostPage() {
       condition: form.condition as Condition,
       pricePerDay: Number(form.pricePerDay),
       location: form.location.trim(),
+      pickupAddress: form.pickupAddress.trim() || undefined,
       imageUrl,
       available: true,
     })
@@ -227,6 +228,19 @@ export default function PostPage() {
               </div>
               {errors.location && <p className="text-red-500 text-xs mt-1">{errors.location}</p>}
             </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Pickup / Drop-off Address
+              <span className="ml-1.5 text-xs font-normal text-gray-400">(only shown after request is approved)</span>
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. 123 Main St, Bozeman MT — or meet at hardware store on 5th"
+              value={form.pickupAddress}
+              onChange={(e) => set('pickupAddress', e.target.value)}
+              className={inp('pickupAddress')}
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Photo <span className="text-gray-400 font-normal text-xs">(optional)</span></label>

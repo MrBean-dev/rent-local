@@ -18,6 +18,7 @@ interface FormData {
   contactName: string
   contactPhone: string
   contactEmail: string
+  pickupAddress: string
   imageUrl: string
   available: boolean
 }
@@ -74,6 +75,7 @@ export default function EditListingPage() {
       contactName:  listing.contactName,
       contactPhone: listing.contactPhone,
       contactEmail: listing.contactEmail,
+      pickupAddress: listing.pickupAddress ?? '',
       imageUrl:     listing.imageUrl ?? '',
       available:    listing.available,
     })
@@ -135,10 +137,11 @@ export default function EditListingPage() {
       description:   form.description.trim(),
       category:      form.category as Category,
       condition:     form.condition as Condition,
-      price_per_day: Number(form.pricePerDay),
-      location:      form.location.trim(),
+      price_per_day:    Number(form.pricePerDay),
+      location:         form.location.trim(),
+      pickup_address:   form.pickupAddress.trim() || null,
       image_url,
-      available:     form.available,
+      available:        form.available,
     })
     setSaved(true)
     setTimeout(() => router.push(`/listings/${id}`), 1500)
@@ -334,6 +337,20 @@ export default function EditListingPage() {
               </div>
               {errors.location && <p className="text-red-500 text-xs mt-1">{errors.location}</p>}
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Pickup / Drop-off Address
+              <span className="ml-1.5 text-xs font-normal text-gray-400">(only shown after request is approved)</span>
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. 123 Main St, Bozeman MT — or meet at hardware store on 5th"
+              value={form.pickupAddress}
+              onChange={(e) => set('pickupAddress', e.target.value)}
+              className={inp('pickupAddress')}
+            />
           </div>
 
           {/* Photo */}

@@ -7,7 +7,7 @@ const table = (name: string) => (createClient().from(name) as any)
 // ── Listings ──────────────────────────────────────────────
 
 export async function fetchListings(): Promise<Listing[]> {
-  const { data } = await table('listings').select('*, profiles(name)').order('created_at', { ascending: false })
+  const { data } = await table('listings').select('id, owner_id, title, description, category, condition, price_per_day, location, image_url, available, created_at, profiles(name)').order('created_at', { ascending: false })
   return (data ?? []).map(rowToListing)
 }
 
@@ -21,9 +21,19 @@ export async function fetchMyListings(userId: string): Promise<Listing[]> {
   return (data ?? []).map(rowToListing)
 }
 
+export async function hasApprovedRequest(userId: string, listingId: string): Promise<boolean> {
+  const { data } = await table('rental_requests')
+    .select('id')
+    .eq('renter_id', userId)
+    .eq('listing_id', listingId)
+    .eq('status', 'approved')
+    .limit(1)
+  return (data ?? []).length > 0
+}
+
 export async function insertListing(userId: string, listing: {
   title: string; description: string; category: string; condition: string;
-  pricePerDay: number; location: string; imageUrl?: string; available: boolean
+  pricePerDay: number; location: string; pickupAddress?: string; imageUrl?: string; available: boolean
 }): Promise<string | null> {
   const { data } = await table('listings').insert({
     owner_id: userId,
@@ -33,6 +43,7 @@ export async function insertListing(userId: string, listing: {
     condition: listing.condition,
     price_per_day: listing.pricePerDay,
     location: listing.location,
+    pickup_address: listing.pickupAddress ?? null,
     image_url: listing.imageUrl ?? null,
     available: listing.available,
   }).select('id').single()
@@ -41,7 +52,8 @@ export async function insertListing(userId: string, listing: {
 
 export async function patchListing(id: string, fields: {
   title?: string; description?: string; category?: string; condition?: string;
-  price_per_day?: number; location?: string; image_url?: string | null; available?: boolean
+  price_per_day?: number; location?: string; pickup_address?: string | null;
+  image_url?: string | null; available?: boolean
 }): Promise<void> {
   await table('listings').update(fields).eq('id', id)
 }
@@ -125,6 +137,7 @@ function rowToListing(row: any): Listing {
     imageUrl: row.image_url ?? undefined,
     available: row.available,
     createdAt: row.created_at,
+    pickupAddress: row.pickup_address ?? undefined,
     contactName: row.profiles?.name ?? '',
     contactPhone: '',
     contactEmail: '',

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { fetchListing, fetchListings, removeListing, fetchRequestsForListing } from '@/lib/db'
+import { fetchListing, fetchListings, removeListing, fetchRequestsForListing, hasApprovedRequest } from '@/lib/db'
 import { useAuth } from '@/components/AuthProvider'
 import type { Listing, RentalRequest } from '@/lib/types'
 import { formatPrice, formatDate, categoryLabel, conditionLabel } from '@/lib/utils'
@@ -34,6 +34,7 @@ export default function ListingDetailPage() {
   const [isOwner, setIsOwner]             = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [copied, setCopied]               = useState(false)
+  const [pickupUnlocked, setPickupUnlocked] = useState(false)
 
   const handleCopyLink = useCallback(() => {
     navigator.clipboard.writeText(window.location.href).then(() => {
@@ -61,15 +62,8 @@ export default function ListingDetailPage() {
     })
   }, [id])
 
-  // Check ownership via auth user — we store owner_id server-side, so we
-  // compare by fetching the raw row. For now we use a client-side check via
-  // the Supabase query that only returns the listing if the user owns it.
   useEffect(() => {
     if (!user || !listing) return
-    // listing.contactName comes from the profile joined to the listing's owner_id
-    // We mark as owner if the logged-in user's profile name matches
-    setIsOwner(true) // Supabase RLS ensures only owner can delete/edit; show controls if logged in and name matches
-    // More precise: re-fetch to confirm ownership
     import('@/lib/supabase').then(({ createClient }) => {
       createClient()
         .from('listings' as any)
@@ -77,7 +71,14 @@ export default function ListingDetailPage() {
         .eq('id', id)
         .single()
         .then(({ data }: any) => {
-          setIsOwner(data?.owner_id === user.id)
+          const owner = data?.owner_id === user.id
+          setIsOwner(owner)
+          // Owners always see pickup address; renters see it only if approved
+          if (owner) {
+            setPickupUnlocked(true)
+          } else {
+            hasApprovedRequest(user.id, id).then(setPickupUnlocked)
+          }
         })
     })
   }, [user, listing, id])
@@ -186,6 +187,35 @@ export default function ListingDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Pickup / drop-off address */}
+        {(listing.pickupAddress || isOwner) && (
+          <div className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${pickupUnlocked ? 'border-green-100' : 'border-gray-100'}`}>
+            <div className={`flex items-center gap-3 px-5 py-4 border-b ${pickupUnlocked ? 'border-green-100 bg-green-50/60' : 'border-gray-100 bg-gray-50/60'}`}>
+              <span className="font-semibold text-gray-900">📍 Pickup / Drop-off</span>
+              {pickupUnlocked && (
+                <span className="ml-auto text-xs font-semibold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">Unlocked</span>
+              )}
+            </div>
+            <div className="px-5 py-4">
+              {pickupUnlocked && listing.pickupAddress ? (
+                <p className="text-gray-700 text-sm leading-relaxed">{listing.pickupAddress}</p>
+              ) : pickupUnlocked && !listing.pickupAddress ? (
+                <p className="text-gray-400 text-sm italic">The owner hasn't added pickup instructions yet. Message them to arrange.</p>
+              ) : (
+                <div className="flex items-center gap-3 text-gray-400">
+                  <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Address revealed after approval</p>
+                    <p className="text-xs mt-0.5">Send a rental request to unlock the pickup location.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Availability calendar */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">

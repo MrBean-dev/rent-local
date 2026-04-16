@@ -15,6 +15,7 @@ export interface Listing {
   createdAt: string
   imageUrl?: string
   available: boolean
+  pickupAddress?: string
 }
 
 export interface UserProfile {
