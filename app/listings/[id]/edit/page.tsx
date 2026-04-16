@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { fetchListing, patchListing } from '@/lib/db'
 import { uploadListingImage, deleteListingImage } from '@/lib/uploadImage'
+
 import { useAuth } from '@/components/AuthProvider'
 import type { Category, Condition, Listing } from '@/lib/types'
 
@@ -56,10 +57,13 @@ export default function EditListingPage() {
 
   const [original, setOriginal] = useState<Listing | null>(null)
   const [form, setForm] = useState<FormData | null>(null)
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [errors, setErrors] = useState<Errors>({})
-  const [saved, setSaved] = useState(false)
+  const [imageFile, setImageFile]   = useState<File | null>(null)
+  const [errors, setErrors]         = useState<Errors>({})
+  const [saved, setSaved]           = useState(false)
   const [photoLoading, setPhotoLoading] = useState(false)
+  const [uploadStage, setUploadStage] = useState('')
+  const [uploadPct, setUploadPct]   = useState(0)
+  const [redactedCount, setRedactedCount] = useState(0)
 
   useEffect(() => {
     fetchListing(id).then((listing) => {
@@ -122,7 +126,14 @@ export default function EditListingPage() {
       if (original.imageUrl?.includes('supabase')) {
         await deleteListingImage(original.imageUrl).catch(() => {})
       }
-      try { image_url = await uploadListingImage(user.id, imageFile) } catch {}
+      try {
+        const result = await uploadListingImage(user.id, imageFile, (stage, pct) => {
+          setUploadStage(stage)
+          setUploadPct(pct ?? 0)
+        })
+        image_url = result.url
+        setRedactedCount(result.redacted)
+      } catch {}
     } else if (!form.imageUrl) {
       // User removed the image
       if (original.imageUrl?.includes('supabase')) {
@@ -132,6 +143,7 @@ export default function EditListingPage() {
     }
 
     setPhotoLoading(false)
+    setUploadStage('')
     await patchListing(id, {
       title:         form.title.trim(),
       description:   form.description.trim(),
@@ -449,19 +461,46 @@ export default function EditListingPage() {
           </div>
         </SectionCard>
 
+        {/* Upload progress */}
+        {photoLoading && uploadStage && (
+          <div className="bg-blue-50 border border-blue-100 rounded-2xl px-5 py-4 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-blue-700">
+              <svg className="w-4 h-4 animate-spin shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              {uploadStage}
+            </div>
+            {uploadPct > 0 && uploadPct < 100 && (
+              <div className="w-full bg-blue-100 rounded-full h-1.5">
+                <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${uploadPct}%` }} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {redactedCount > 0 && !photoLoading && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3 flex items-start gap-3 text-sm text-amber-700">
+            <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p>We detected and blurred <strong>{redactedCount} phone number{redactedCount !== 1 ? 's' : ''}</strong> in your photo.</p>
+          </div>
+        )}
+
         <button
           type="button"
           onClick={handleSubmit}
-          className="w-full py-4 bg-brand-600 text-white font-bold rounded-2xl hover:bg-brand-700 active:scale-[0.98] transition-all text-base shadow-lg shadow-brand-600/20"
+          disabled={photoLoading}
+          className="w-full py-4 bg-brand-600 text-white font-bold rounded-2xl hover:bg-brand-700 active:scale-[0.98] transition-all text-base shadow-lg shadow-brand-600/20 disabled:opacity-60"
         >
-          Save Changes →
+          {photoLoading ? 'Processing image…' : 'Save Changes →'}
         </button>
 
         {Object.keys(errors).length > 0 && (
           <p className="text-center text-sm text-red-500">Please fix the errors above before saving.</p>
         )}
 
-        <p className="text-center text-xs text-gray-400 pb-4">Changes are saved to this device.</p>
+        <p className="text-center text-xs text-gray-400 pb-4">Changes are saved to your account.</p>
       </div>
     </div>
   )
