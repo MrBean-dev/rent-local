@@ -4,6 +4,7 @@ import './globals.css'
 import Navbar from '@/components/Navbar'
 import BottomNav from '@/components/BottomNav'
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar'
+import { ThemeProvider } from '@/components/ThemeProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -32,16 +33,18 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <Navbar />
-        {/* pb-20 on mobile leaves room for the bottom nav bar */}
-        <main className="min-h-screen pb-20 sm:pb-0">{children}</main>
-        <footer className="hidden sm:block bg-white border-t border-gray-200 mt-16 py-8 text-center text-sm text-gray-500">
-          <p>RentLocal &mdash; Equipment Rentals Near You</p>
-        </footer>
-        <BottomNav />
-        <ServiceWorkerRegistrar />
+        <ThemeProvider>
+          <Navbar />
+          {/* pb-20 on mobile leaves room for the bottom nav bar */}
+          <main className="min-h-screen pb-20 sm:pb-0">{children}</main>
+          <footer className="hidden sm:block bg-white border-t border-gray-200 mt-16 py-8 text-center text-sm text-gray-500">
+            <p>RentLocal &mdash; Equipment Rentals Near You</p>
+          </footer>
+          <BottomNav />
+          <ServiceWorkerRegistrar />
+        </ThemeProvider>
       </body>
     </html>
   )

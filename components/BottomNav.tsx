@@ -63,7 +63,7 @@ export default function BottomNav() {
   }
 
   return (
-    <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 safe-bottom">
+    <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 safe-bottom">
       <div className="flex items-end justify-around px-1 h-16">
         {tabs.map((tab) => {
           const active = isActive(tab.href)
@@ -72,7 +72,7 @@ export default function BottomNav() {
               key={tab.href}
               href={tab.href}
               className={`flex flex-col items-center justify-end pb-2 gap-0.5 min-w-0 flex-1 ${
-                tab.center ? '' : active ? 'text-brand-600' : 'text-gray-400'
+                tab.center ? '' : active ? 'text-brand-600' : 'text-gray-400 dark:text-gray-500'
               }`}
             >
               {tab.icon(active)}

@@ -1,12 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useEffect, useState, useCallback } from 'react'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { getListing } from '@/lib/storage'
+import { getListing, getListings, deleteListing } from '@/lib/storage'
 import { getRequestsForListing } from '@/lib/requests'
-import type { Listing } from '@/lib/types'
+import { getProfile } from '@/lib/profile'
+import type { Listing, RentalRequest } from '@/lib/types'
 import { formatPrice, formatDate, categoryLabel, conditionLabel } from '@/lib/utils'
+import AvailabilityCalendar from '@/components/AvailabilityCalendar'
+import ListingCard from '@/components/ListingCard'
 
 const categoryBadge: Record<string, string> = {
   trailer: 'bg-blue-100 text-blue-700',
@@ -28,14 +31,42 @@ const conditionText: Record<string, string> = {
 
 export default function ListingDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const [listing, setListing]         = useState<Listing | null | undefined>(undefined)
-  const [pendingCount, setPendingCount] = useState(0)
+  const router = useRouter()
+  const [listing, setListing]             = useState<Listing | null | undefined>(undefined)
+  const [requests, setRequests]           = useState<RentalRequest[]>([])
+  const [otherListings, setOtherListings] = useState<Listing[]>([])
+  const [pendingCount, setPendingCount]   = useState(0)
+  const [isOwner, setIsOwner]             = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [copied, setCopied]               = useState(false)
+
+  const handleCopyLink = useCallback(() => {
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }, [])
 
   useEffect(() => {
     const found = getListing(id)
     setListing(found ?? null)
-    if (found) setPendingCount(getRequestsForListing(id).filter((r) => r.status === 'pending').length)
+    if (found) {
+      const reqs = getRequestsForListing(id)
+      setRequests(reqs)
+      setPendingCount(reqs.filter((r) => r.status === 'pending').length)
+      const profile = getProfile()
+      if (profile) setIsOwner(profile.name.toLowerCase() === found.contactName.toLowerCase())
+      const others = getListings().filter(
+        (l) => l.id !== id && l.contactName.toLowerCase() === found.contactName.toLowerCase() && l.available
+      )
+      setOtherListings(others.slice(0, 3))
+    }
   }, [id])
+
+  function handleDelete() {
+    deleteListing(id)
+    router.push('/profile/listings')
+  }
 
   if (listing === undefined) return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400">Loading…</div>
@@ -84,6 +115,26 @@ export default function ListingDetailPage() {
                 <span className={`w-2 h-2 rounded-full ${conditionDot[listing.condition]}`} />
                 <span className="capitalize">{conditionLabel(listing.condition)}</span>
               </div>
+              <button
+                onClick={handleCopyLink}
+                className="mt-2 flex items-center gap-1.5 text-xs text-orange-200 hover:text-white transition-colors ml-auto"
+              >
+                {copied ? (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Copy link
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
@@ -134,6 +185,16 @@ export default function ListingDetailPage() {
           </div>
         </div>
 
+        {/* Availability calendar */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 bg-gray-50/60">
+            <span className="font-semibold text-gray-900">📅 Availability</span>
+          </div>
+          <div className="px-5 py-5">
+            <AvailabilityCalendar requests={requests} />
+          </div>
+        </div>
+
         {/* Pre-rental inspection callout */}
         <div className="bg-white rounded-2xl border border-amber-100 shadow-sm overflow-hidden">
           <div className="flex items-center gap-3 px-5 py-4 border-b border-amber-100 bg-amber-50/60">
@@ -151,6 +212,43 @@ export default function ListingDetailPage() {
             </Link>
           </div>
         </div>
+
+        {/* Owner actions */}
+        {isOwner && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4 flex items-center gap-3">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide mr-auto">Your listing</span>
+            <Link
+              href={`/listings/${listing.id}/edit`}
+              className="px-4 py-2 text-sm font-semibold text-brand-600 border border-brand-200 rounded-xl hover:bg-brand-50 transition-colors"
+            >
+              Edit
+            </Link>
+            {!confirmDelete ? (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="px-4 py-2 text-sm font-semibold text-red-500 border border-red-200 rounded-xl hover:bg-red-50 transition-colors"
+              >
+                Delete
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">Sure?</span>
+                <button
+                  onClick={handleDelete}
+                  className="px-3 py-1.5 text-xs font-semibold bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                >
+                  Yes, delete
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  className="px-3 py-1.5 text-xs font-semibold text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* CTA card */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -194,6 +292,20 @@ export default function ListingDetailPage() {
             )}
           </div>
         </div>
+
+        {/* More from this owner */}
+        {otherListings.length > 0 && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 bg-gray-50/60">
+              <span className="font-semibold text-gray-900">🏷️ More from {listing.contactName}</span>
+            </div>
+            <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {otherListings.map((l) => (
+                <ListingCard key={l.id} listing={l} />
+              ))}
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

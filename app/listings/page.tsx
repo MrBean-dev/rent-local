@@ -30,6 +30,7 @@ function ListingsContent() {
   const [category, setCategory]         = useState<Category | ''>((searchParams.get('category') as Category) ?? '')
   const [condition, setCondition]       = useState(searchParams.get('condition') ?? '')
   const [maxPrice, setMaxPrice]         = useState(searchParams.get('maxPrice') ?? '')
+  const [sortBy, setSortBy]             = useState(searchParams.get('sort') ?? 'newest')
   const [showUnavailable, setShowUnavailable] = useState(false)
   const [filtersOpen, setFiltersOpen]   = useState(false)
 
@@ -41,8 +42,9 @@ function ListingsContent() {
     if (category) p.set('category', category)
     if (condition) p.set('condition', condition)
     if (maxPrice) p.set('maxPrice', maxPrice)
+    if (sortBy && sortBy !== 'newest') p.set('sort', sortBy)
     router.replace(`/listings${p.toString() ? '?' + p.toString() : ''}`, { scroll: false })
-  }, [query, category, condition, maxPrice, router])
+  }, [query, category, condition, maxPrice, sortBy, router])
 
   const filtered = useMemo(() => {
     const lower = query.toLowerCase()
@@ -52,8 +54,13 @@ function ListingsContent() {
       .filter((l) => !condition || l.condition === condition)
       .filter((l) => !maxPrice  || l.pricePerDay <= Number(maxPrice))
       .filter((l) => showUnavailable || l.available)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-  }, [listings, query, category, condition, maxPrice, showUnavailable])
+      .sort((a, b) => {
+        if (sortBy === 'price_asc')  return a.pricePerDay - b.pricePerDay
+        if (sortBy === 'price_desc') return b.pricePerDay - a.pricePerDay
+        if (sortBy === 'oldest')     return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() // newest
+      })
+  }, [listings, query, category, condition, maxPrice, showUnavailable, sortBy])
 
   const activeFilterCount = [category, condition, maxPrice].filter(Boolean).length
 
@@ -172,10 +179,22 @@ function ListingsContent() {
 
         {/* Results */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-gray-500 mb-4">
-            <span className="font-semibold text-gray-900">{filtered.length}</span> {filtered.length === 1 ? 'listing' : 'listings'} found
-            {query && <span> for "<strong>{query}</strong>"</span>}
-          </p>
+          <div className="flex items-center justify-between mb-4 gap-3">
+            <p className="text-sm text-gray-500">
+              <span className="font-semibold text-gray-900">{filtered.length}</span> {filtered.length === 1 ? 'listing' : 'listings'} found
+              {query && <span> for "<strong>{query}</strong>"</span>}
+            </p>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-200 shrink-0"
+            >
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="price_asc">Price: low to high</option>
+              <option value="price_desc">Price: high to low</option>
+            </select>
+          </div>
 
           {filtered.length === 0 ? (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm text-center py-20">

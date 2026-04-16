@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { getListings } from '@/lib/storage'
+import { getListings, deleteListing, updateListing } from '@/lib/storage'
 import { getProfile } from '@/lib/profile'
 import { getRequestsForListing } from '@/lib/requests'
 import type { Listing } from '@/lib/types'
@@ -19,11 +19,12 @@ const categoryIcon: Record<string, string> = {
 }
 
 export default function MyListingsPage() {
-  const [listings, setListings]     = useState<Listing[]>([])
-  const [pendingMap, setPendingMap] = useState<Record<string, number>>({})
-  const [hasProfile, setHasProfile] = useState(true)
+  const [listings, setListings]         = useState<Listing[]>([])
+  const [pendingMap, setPendingMap]     = useState<Record<string, number>>({})
+  const [hasProfile, setHasProfile]     = useState(true)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
-  useEffect(() => {
+  function load() {
     const profile = getProfile()
     if (!profile) { setHasProfile(false); return }
     const all = getListings()
@@ -34,7 +35,20 @@ export default function MyListingsPage() {
       map[l.id] = getRequestsForListing(l.id).filter((r) => r.status === 'pending').length
     })
     setPendingMap(map)
-  }, [])
+  }
+
+  useEffect(() => { load() }, [])
+
+  function handleDelete(id: string) {
+    deleteListing(id)
+    setConfirmDelete(null)
+    load()
+  }
+
+  function handleToggleAvailability(listing: Listing) {
+    updateListing({ ...listing, available: !listing.available })
+    load()
+  }
 
   if (!hasProfile) {
     return (
@@ -105,17 +119,38 @@ export default function MyListingsPage() {
                   </div>
                 </div>
                 {/* Footer actions */}
-                <div className="border-t border-gray-50 px-4 py-2.5 flex items-center gap-3">
-                  <Link href={`/listings/${l.id}`} className="text-sm text-gray-500 hover:text-gray-800 transition-colors">View listing</Link>
+                <div className="border-t border-gray-50 px-4 py-2.5 flex items-center gap-3 flex-wrap">
+                  <Link href={`/listings/${l.id}`} className="text-sm text-gray-500 hover:text-gray-800 transition-colors">View</Link>
+                  <span className="text-gray-200">·</span>
+                  <Link href={`/listings/${l.id}/edit`} className="text-sm text-brand-600 hover:underline">Edit</Link>
+                  <span className="text-gray-200">·</span>
+                  <button
+                    onClick={() => handleToggleAvailability(l)}
+                    className={`text-sm hover:underline ${l.available ? 'text-yellow-600' : 'text-green-600'}`}
+                  >
+                    {l.available ? 'Mark unavailable' : 'Mark available'}
+                  </button>
                   <span className="text-gray-200">·</span>
                   <Link href={`/listings/${l.id}/requests`} className="text-sm text-brand-600 hover:underline flex items-center gap-1">
-                    Manage requests
+                    Requests
                     {pendingMap[l.id] > 0 && (
                       <span className="bg-brand-600 text-white text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
                         {pendingMap[l.id]}
                       </span>
                     )}
                   </Link>
+                  <span className="text-gray-200 ml-auto">·</span>
+                  {confirmDelete === l.id ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">Delete?</span>
+                      <button onClick={() => handleDelete(l.id)} className="text-xs font-semibold text-red-500 hover:underline">Yes</button>
+                      <button onClick={() => setConfirmDelete(null)} className="text-xs text-gray-400 hover:underline">No</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setConfirmDelete(l.id)} className="text-sm text-red-400 hover:text-red-600 hover:underline">
+                      Delete
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
