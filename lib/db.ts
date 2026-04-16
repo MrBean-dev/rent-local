@@ -66,7 +66,7 @@ export async function fetchOwnerListings(ownerName: string, excludeId: string): 
 
 export async function fetchRequestsForListing(listingId: string): Promise<RentalRequest[]> {
   const { data } = await table('rental_requests')
-    .select('*, profiles(name, phone), listings(title, owner_id, profiles(name))')
+    .select('*, profiles(name), listings(title, owner_id, profiles(name))')
     .eq('listing_id', listingId)
     .order('created_at', { ascending: false })
   return (data ?? []).map(rowToRequest)
@@ -74,7 +74,7 @@ export async function fetchRequestsForListing(listingId: string): Promise<Rental
 
 export async function fetchMyRequests(userId: string): Promise<RentalRequest[]> {
   const { data } = await table('rental_requests')
-    .select('*, profiles(name, phone), listings(title, owner_id, profiles(name))')
+    .select('*, profiles(name), listings(title, owner_id, profiles(name))')
     .eq('renter_id', userId)
     .order('created_at', { ascending: false })
   return (data ?? []).map(rowToRequest)
@@ -141,7 +141,7 @@ function rowToRequest(row: any): RentalRequest {
     ownerPhone: '',
     ownerEmail: '',
     renterName: row.profiles?.name ?? '',
-    renterPhone: row.profiles?.phone ?? '',
+    renterPhone: '',
     renterEmail: '',
     startDate: row.start_date,
     endDate: row.end_date,

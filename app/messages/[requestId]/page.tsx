@@ -46,8 +46,11 @@ export default function MessagesPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput]       = useState('')
   const [sending, setSending]   = useState(false)
+  const [blocked, setBlocked]   = useState(false)
   const bottomRef               = useRef<HTMLDivElement>(null)
   const inputRef                = useRef<HTMLInputElement>(null)
+
+  const CONTACT_PATTERN = /(\+?1?[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})|([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})|(https?:\/\/\S+|www\.\S+)/i
 
   useEffect(() => {
     if (!user) return
@@ -116,6 +119,13 @@ export default function MessagesPage() {
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault()
     if (!input.trim() || !user || sending) return
+
+    if (CONTACT_PATTERN.test(input)) {
+      setBlocked(true)
+      setTimeout(() => setBlocked(false), 4000)
+      return
+    }
+
     setSending(true)
     const sb = createClient()
     await (sb.from('messages') as any).insert({
@@ -233,6 +243,14 @@ export default function MessagesPage() {
 
       {/* Input */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 sm:pb-3 pb-safe">
+        {blocked && (
+          <div className="max-w-2xl mx-auto mb-2 bg-red-50 border border-red-200 text-red-600 text-xs font-medium px-3 py-2 rounded-xl flex items-center gap-2">
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Phone numbers, emails, and links aren't allowed. All communication stays in-app.
+          </div>
+        )}
         <form onSubmit={sendMessage} className="max-w-2xl mx-auto flex items-center gap-2">
           <input
             ref={inputRef}
