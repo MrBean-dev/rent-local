@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { insertListing } from '@/lib/db'
 import { useAuth } from '@/components/AuthProvider'
 import { uploadListingImage } from '@/lib/uploadImage'
+import { geocodeLocation } from '@/lib/geocode'
 import { formatPrice } from '@/lib/utils'
 import type { Category, Condition } from '@/lib/types'
 
@@ -116,6 +117,7 @@ export default function PostPage() {
     }
     setPhotoLoading(false)
     setUploadStage('')
+    const coords = await geocodeLocation(form.location.trim())
     await insertListing(user.id, {
       title: form.title.trim(),
       description: form.description.trim(),
@@ -126,6 +128,8 @@ export default function PostPage() {
       pickupAddress: form.pickupAddress.trim() || undefined,
       imageUrl,
       available: true,
+      lat: coords?.lat,
+      lng: coords?.lng,
     })
     setSubmitted(true)
     setTimeout(() => router.push('/listings'), 2000)

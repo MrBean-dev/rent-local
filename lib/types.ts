@@ -16,6 +16,8 @@ export interface Listing {
   imageUrl?: string
   available: boolean
   pickupAddress?: string
+  lat?: number
+  lng?: number
 }
 
 export interface UserProfile {

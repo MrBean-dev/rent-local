@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { fetchListing, patchListing } from '@/lib/db'
 import { uploadListingImage, deleteListingImage } from '@/lib/uploadImage'
+import { geocodeLocation } from '@/lib/geocode'
 
 import { useAuth } from '@/components/AuthProvider'
 import type { Category, Condition, Listing } from '@/lib/types'
@@ -144,6 +145,9 @@ export default function EditListingPage() {
 
     setPhotoLoading(false)
     setUploadStage('')
+    const coords = form.location.trim() !== original.location
+      ? await geocodeLocation(form.location.trim())
+      : { lat: original.lat, lng: original.lng }
     await patchListing(id, {
       title:         form.title.trim(),
       description:   form.description.trim(),
@@ -154,6 +158,8 @@ export default function EditListingPage() {
       pickup_address:   form.pickupAddress.trim() || null,
       image_url,
       available:        form.available,
+      lat:              coords?.lat ?? null,
+      lng:              coords?.lng ?? null,
     })
     setSaved(true)
     setTimeout(() => router.push(`/listings/${id}`), 1500)

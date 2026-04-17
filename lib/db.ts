@@ -33,7 +33,8 @@ export async function hasApprovedRequest(userId: string, listingId: string): Pro
 
 export async function insertListing(userId: string, listing: {
   title: string; description: string; category: string; condition: string;
-  pricePerDay: number; location: string; pickupAddress?: string; imageUrl?: string; available: boolean
+  pricePerDay: number; location: string; pickupAddress?: string; imageUrl?: string
+  available: boolean; lat?: number; lng?: number
 }): Promise<string | null> {
   const { data } = await table('listings').insert({
     owner_id: userId,
@@ -46,6 +47,8 @@ export async function insertListing(userId: string, listing: {
     pickup_address: listing.pickupAddress ?? null,
     image_url: listing.imageUrl ?? null,
     available: listing.available,
+    lat: listing.lat ?? null,
+    lng: listing.lng ?? null,
   }).select('id').single()
   return data?.id ?? null
 }
@@ -53,7 +56,7 @@ export async function insertListing(userId: string, listing: {
 export async function patchListing(id: string, fields: {
   title?: string; description?: string; category?: string; condition?: string;
   price_per_day?: number; location?: string; pickup_address?: string | null;
-  image_url?: string | null; available?: boolean
+  image_url?: string | null; available?: boolean; lat?: number | null; lng?: number | null
 }): Promise<void> {
   await table('listings').update(fields).eq('id', id)
 }
@@ -138,6 +141,8 @@ function rowToListing(row: any): Listing {
     available: row.available,
     createdAt: row.created_at,
     pickupAddress: row.pickup_address ?? undefined,
+    lat: row.lat ?? undefined,
+    lng: row.lng ?? undefined,
     contactName: row.profiles?.name ?? '',
     contactPhone: '',
     contactEmail: '',
