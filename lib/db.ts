@@ -96,7 +96,7 @@ export async function fetchMyRequests(userId: string): Promise<RentalRequest[]> 
 }
 
 export async function insertRequest(userId: string, req: {
-  listingId: string; startDate: string; endDate: string; message: string
+  listingId: string; startDate: string; endDate: string; message: string; idDocumentUrl?: string
 }): Promise<void> {
   await table('rental_requests').insert({
     listing_id: req.listingId,
@@ -105,6 +105,7 @@ export async function insertRequest(userId: string, req: {
     end_date: req.endDate,
     message: req.message,
     status: 'pending',
+    id_document_url: req.idDocumentUrl ?? null,
   })
 }
 
@@ -166,6 +167,7 @@ function rowToRequest(row: any): RentalRequest {
     message: row.message ?? '',
     status: row.status,
     createdAt: row.created_at,
+    idDocumentUrl: row.id_document_url ?? undefined,
   }
 }
 

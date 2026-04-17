@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { fetchListing, fetchRequestsForListing, patchRequestStatus, fetchMyReviewForRequest } from '@/lib/db'
+import { getIdDocumentUrl } from '@/lib/uploadImage'
 import { useAuth } from '@/components/AuthProvider'
 import type { Listing, RentalRequest } from '@/lib/types'
 import { formatDate, formatPrice } from '@/lib/utils'
@@ -163,6 +164,28 @@ export default function RequestsDashboard() {
                       <div className="bg-brand-50 rounded-xl px-4 py-2.5 text-sm font-bold text-brand-700">${total.toLocaleString()} est.</div>
                     </div>
                     {req.message && <div className="bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-600 italic">"{req.message}"</div>}
+
+                    {/* ID document */}
+                    {req.idDocumentUrl && (
+                      <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-blue-600 text-lg">🪪</span>
+                          <div>
+                            <p className="text-sm font-semibold text-blue-900">Driver's License Provided</p>
+                            <p className="text-xs text-blue-500">Click to view — link expires in 1 hour</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            const url = await getIdDocumentUrl(req.idDocumentUrl!)
+                            window.open(url, '_blank')
+                          }}
+                          className="shrink-0 px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          View ID
+                        </button>
+                      </div>
+                    )}
                     {req.status === 'pending' && (
                       <div className="flex gap-2 pt-1">
                         <button onClick={() => setStatus(req.id, 'approved')} className="flex-1 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-xl hover:bg-green-700 transition-colors">✓ Approve</button>

@@ -47,6 +47,7 @@ export interface RentalRequest {
   message: string
   status: RequestStatus
   createdAt: string
+  idDocumentUrl?: string
 }
 
 export interface InspectionPhoto {

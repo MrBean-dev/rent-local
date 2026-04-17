@@ -43,19 +43,38 @@ export async function uploadListingImage(
   // Step 3: Upload
   onProgress?.('Uploading…')
   const { error } = await supabase.storage
-    .from('listings')
+    .from('Listings')
     .upload(path, blob, { contentType: 'image/jpeg', upsert: false })
 
   if (error) throw error
 
-  const { data } = supabase.storage.from('listings').getPublicUrl(path)
+  const { data } = supabase.storage.from('Listings').getPublicUrl(path)
   return { url: data.publicUrl, redacted }
+}
+
+export async function uploadIdDocument(userId: string, file: File): Promise<string> {
+  const ext = file.name.split('.').pop() ?? 'jpg'
+  const path = `${userId}/${Date.now()}.${ext}`
+  const supabase = createClient()
+  const { error } = await supabase.storage
+    .from('id-documents')
+    .upload(path, file, { contentType: file.type, upsert: false })
+  if (error) throw error
+  return path
+}
+
+export async function getIdDocumentUrl(path: string): Promise<string> {
+  const supabase = createClient()
+  const { data } = await supabase.storage
+    .from('id-documents')
+    .createSignedUrl(path, 60 * 60) // 1 hour expiry
+  return data?.signedUrl ?? ''
 }
 
 export async function deleteListingImage(imageUrl: string): Promise<void> {
   // Extract path from URL: .../storage/v1/object/public/listings/{path}
-  const match = imageUrl.match(/\/listings\/(.+)$/)
+  const match = imageUrl.match(/\/Listings\/(.+)$/)
   if (!match) return
   const supabase = createClient()
-  await supabase.storage.from('listings').remove([match[1]])
+  await supabase.storage.from('Listings').remove([match[1]])
 }
