@@ -16,9 +16,10 @@ export function generateId(): string {
 
 export function categoryLabel(cat: string): string {
   const map: Record<string, string> = {
-    trailer: 'Trailer',
-    backhoe: 'Backhoe / Excavator',
-    tool: 'Tool',
+    trailer:   'Trailer',
+    backhoe:   'Backhoe / Excavator',
+    tool:      'Tool',
+    box_truck: 'Box Truck',
   }
   return map[cat] ?? cat
 }

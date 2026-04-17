@@ -4,15 +4,17 @@ import { formatPrice, formatDate } from '@/lib/utils'
 import { StarDisplay } from './StarRating'
 
 const categoryColors: Record<string, string> = {
-  trailer: 'bg-blue-100 text-blue-700',
-  backhoe: 'bg-orange-100 text-orange-700',
-  tool: 'bg-green-100 text-green-700',
+  trailer:   'bg-blue-100 text-blue-700',
+  backhoe:   'bg-orange-100 text-orange-700',
+  tool:      'bg-green-100 text-green-700',
+  box_truck: 'bg-purple-100 text-purple-700',
 }
 
 const categoryLabels: Record<string, string> = {
-  trailer: 'Trailer',
-  backhoe: 'Backhoe / Excavator',
-  tool: 'Tool',
+  trailer:   'Trailer',
+  backhoe:   'Backhoe / Excavator',
+  tool:      'Tool',
+  box_truck: 'Box Truck',
 }
 
 const conditionDot: Record<string, string> = {

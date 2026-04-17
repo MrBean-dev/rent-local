@@ -28,9 +28,10 @@ interface FormData {
 interface Errors { [key: string]: string }
 
 const CATEGORIES: { value: Category; label: string; icon: string; desc: string; color: string; active: string }[] = [
-  { value: 'trailer',  label: 'Trailer',  icon: '🚛', desc: 'Utility, dump, car hauler', color: 'border-gray-200 hover:border-blue-300 hover:bg-blue-50',   active: 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' },
-  { value: 'backhoe',  label: 'Backhoe',  icon: '🚜', desc: 'Excavator, skid steer',    color: 'border-gray-200 hover:border-orange-300 hover:bg-orange-50', active: 'border-orange-500 bg-orange-50 ring-2 ring-orange-200' },
-  { value: 'tool',     label: 'Tool',     icon: '🔧', desc: 'Power tools, generators',  color: 'border-gray-200 hover:border-green-300 hover:bg-green-50',  active: 'border-green-500 bg-green-50 ring-2 ring-green-200' },
+  { value: 'trailer',   label: 'Trailer',   icon: '🚛', desc: 'Utility, dump, car hauler', color: 'border-gray-200 hover:border-blue-300 hover:bg-blue-50',     active: 'border-blue-500 bg-blue-50 ring-2 ring-blue-200' },
+  { value: 'backhoe',   label: 'Backhoe',   icon: '🚜', desc: 'Excavator, skid steer',      color: 'border-gray-200 hover:border-orange-300 hover:bg-orange-50', active: 'border-orange-500 bg-orange-50 ring-2 ring-orange-200' },
+  { value: 'tool',      label: 'Tool',      icon: '🔧', desc: 'Power tools, generators',    color: 'border-gray-200 hover:border-green-300 hover:bg-green-50',   active: 'border-green-500 bg-green-50 ring-2 ring-green-200' },
+  { value: 'box_truck', label: 'Box Truck', icon: '🚚', desc: '10ft, 16ft, 26ft trucks',    color: 'border-gray-200 hover:border-purple-300 hover:bg-purple-50', active: 'border-purple-500 bg-purple-50 ring-2 ring-purple-200' },
 ]
 
 const CONDITIONS: { value: Condition; label: string; desc: string; dot: string; active: string }[] = [

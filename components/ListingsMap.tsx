@@ -11,9 +11,10 @@ interface Props {
 }
 
 const categoryColor: Record<string, string> = {
-  trailer: '#3b82f6',
-  backhoe: '#f97316',
-  tool:    '#22c55e',
+  trailer:   '#3b82f6',
+  backhoe:   '#f97316',
+  tool:      '#22c55e',
+  box_truck: '#a855f7',
 }
 
 export default function ListingsMap({ listings, onSelect, userLocation }: Props) {

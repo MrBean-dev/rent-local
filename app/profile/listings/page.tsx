@@ -9,9 +9,9 @@ import type { Listing } from '@/lib/types'
 import { formatPrice, formatDate } from '@/lib/utils'
 
 const categoryBadge: Record<string, string> = {
-  trailer: 'bg-blue-100 text-blue-700', backhoe: 'bg-orange-100 text-orange-700', tool: 'bg-green-100 text-green-700',
+  trailer: 'bg-blue-100 text-blue-700', backhoe: 'bg-orange-100 text-orange-700', tool: 'bg-green-100 text-green-700', box_truck: 'bg-purple-100 text-purple-700',
 }
-const categoryIcon: Record<string, string> = { trailer: '🚛', backhoe: '🚜', tool: '🔧' }
+const categoryIcon: Record<string, string> = { trailer: '🚛', backhoe: '🚜', tool: '🔧', box_truck: '🚚' }
 
 export default function MyListingsPage() {
   const { user, loading } = useAuth()

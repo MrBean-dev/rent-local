@@ -12,10 +12,11 @@ import dynamic from 'next/dynamic'
 const ListingsMap = dynamic(() => import('@/components/ListingsMap'), { ssr: false })
 
 const CATEGORIES: { value: Category | ''; label: string; icon: string }[] = [
-  { value: '',        label: 'All',      icon: '🏷️' },
-  { value: 'trailer', label: 'Trailers', icon: '🚛' },
-  { value: 'backhoe', label: 'Backhoes', icon: '🚜' },
-  { value: 'tool',    label: 'Tools',    icon: '🔧' },
+  { value: '',          label: 'All',        icon: '🏷️' },
+  { value: 'trailer',   label: 'Trailers',   icon: '🚛' },
+  { value: 'backhoe',   label: 'Backhoes',   icon: '🚜' },
+  { value: 'tool',      label: 'Tools',      icon: '🔧' },
+  { value: 'box_truck', label: 'Box Trucks', icon: '🚚' },
 ]
 
 const CONDITIONS = [

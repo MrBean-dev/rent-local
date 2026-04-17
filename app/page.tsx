@@ -8,9 +8,10 @@ import type { Listing } from '@/lib/types'
 import ListingCard from '@/components/ListingCard'
 
 const categories = [
-  { id: 'trailer', label: 'Trailers', icon: '🚛', description: 'Utility, dump, car haulers & more', color: 'bg-blue-50 border-blue-200 hover:border-blue-400', textColor: 'text-blue-700' },
-  { id: 'backhoe', label: 'Backhoes & Excavators', icon: '🚜', description: 'Mini excavators, skid steers, trenchers', color: 'bg-orange-50 border-orange-200 hover:border-orange-400', textColor: 'text-orange-700' },
-  { id: 'tool',    label: 'Tools', icon: '🔧', description: 'Power tools, compactors, generators', color: 'bg-green-50 border-green-200 hover:border-green-400', textColor: 'text-green-700' },
+  { id: 'trailer',   label: 'Trailers',             icon: '🚛', description: 'Utility, dump, car haulers & more',       color: 'bg-blue-50 border-blue-200 hover:border-blue-400',     textColor: 'text-blue-700' },
+  { id: 'backhoe',   label: 'Backhoes & Excavators', icon: '🚜', description: 'Mini excavators, skid steers, trenchers',  color: 'bg-orange-50 border-orange-200 hover:border-orange-400', textColor: 'text-orange-700' },
+  { id: 'tool',      label: 'Tools',                icon: '🔧', description: 'Power tools, compactors, generators',      color: 'bg-green-50 border-green-200 hover:border-green-400',   textColor: 'text-green-700' },
+  { id: 'box_truck', label: 'Box Trucks',           icon: '🚚', description: '10ft, 16ft, 26ft moving trucks',           color: 'bg-purple-50 border-purple-200 hover:border-purple-400', textColor: 'text-purple-700' },
 ]
 
 export default function HomePage() {

@@ -1,4 +1,4 @@
-export type Category = 'trailer' | 'backhoe' | 'tool'
+export type Category = 'trailer' | 'backhoe' | 'tool' | 'box_truck'
 export type Condition = 'excellent' | 'good' | 'fair'
 
 export interface Listing {

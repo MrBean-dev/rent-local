@@ -14,9 +14,10 @@ import { StarDisplay } from '@/components/StarRating'
 import ReviewForm from '@/components/ReviewForm'
 
 const categoryBadge: Record<string, string> = {
-  trailer: 'bg-blue-100 text-blue-700',
-  backhoe: 'bg-orange-100 text-orange-700',
-  tool:    'bg-green-100 text-green-700',
+  trailer:   'bg-blue-100 text-blue-700',
+  backhoe:   'bg-orange-100 text-orange-700',
+  tool:      'bg-green-100 text-green-700',
+  box_truck: 'bg-purple-100 text-purple-700',
 }
 const conditionDot: Record<string, string> = {
   excellent: 'bg-green-500', good: 'bg-yellow-400', fair: 'bg-orange-400',
@@ -141,7 +142,7 @@ export default function ListingDetailPage() {
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${categoryBadge[listing.category]}`}>
-                {listing.category === 'trailer' ? '🚛' : listing.category === 'backhoe' ? '🚜' : '🔧'} {categoryLabel(listing.category)}
+                {listing.category === 'trailer' ? '🚛' : listing.category === 'backhoe' ? '🚜' : listing.category === 'box_truck' ? '🚚' : '🔧'} {categoryLabel(listing.category)}
               </span>
               <h1 className="text-2xl sm:text-3xl font-bold mt-2">{listing.title}</h1>
               <div className="flex flex-wrap gap-3 mt-2 text-sm text-orange-100">
@@ -182,7 +183,7 @@ export default function ListingDetailPage() {
               <img src={listing.imageUrl} alt={listing.title} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-7xl text-gray-200">
-                {listing.category === 'trailer' ? '🚛' : listing.category === 'backhoe' ? '🚜' : '🔧'}
+                {listing.category === 'trailer' ? '🚛' : listing.category === 'backhoe' ? '🚜' : listing.category === 'box_truck' ? '🚚' : '🔧'}
               </div>
             )}
             {!listing.available && (
