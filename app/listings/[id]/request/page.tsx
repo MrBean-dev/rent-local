@@ -59,7 +59,7 @@ export default function RequestPage() {
     setErrors(e)
     const needsId = listing?.category === 'box_truck'
     if (needsId && !idFile) return false
-    return Object.keys(e).length === 0
+    return Object.keys(e).length === 0 && !(needsId && !idFile)
   }
 
   function handleIdChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -162,7 +162,7 @@ export default function RequestPage() {
               <img src={listing.imageUrl} alt={listing.title} className="w-14 h-14 rounded-xl object-cover shrink-0 border border-gray-100" />
             ) : (
               <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center text-2xl shrink-0">
-                {listing.category === 'trailer' ? '🚛' : listing.category === 'backhoe' ? '🚜' : '🔧'}
+                {listing.category === 'trailer' ? '🚛' : listing.category === 'backhoe' ? '🚜' : listing.category === 'box_truck' ? '🚚' : '🔧'}
               </div>
             )}
             <div className="min-w-0">

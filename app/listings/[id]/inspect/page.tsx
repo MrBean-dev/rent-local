@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { getListing } from '@/lib/storage'
+import { fetchListing } from '@/lib/db'
 import { saveInspection, getInspectionsForListing } from '@/lib/inspections'
 import { generateId } from '@/lib/utils'
 import type { Listing, InspectionPhoto, RentalInspection } from '@/lib/types'
@@ -23,10 +23,11 @@ export default function InspectPage() {
   const [pastCount, setPastCount]     = useState(0)
 
   useEffect(() => {
-    const found = getListing(id)
-    if (!found) { router.push('/listings'); return }
-    setListing(found)
-    setPastCount(getInspectionsForListing(id).length)
+    fetchListing(id).then((found) => {
+      if (!found) { router.push('/listings'); return }
+      setListing(found)
+      setPastCount(getInspectionsForListing(id).length)
+    })
   }, [id, router])
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {

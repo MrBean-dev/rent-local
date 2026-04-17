@@ -39,7 +39,7 @@ export default function ListingCard({ listing, avgRating, reviewCount }: { listi
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-400 text-4xl">
-            {listing.category === 'trailer' ? '🚛' : listing.category === 'backhoe' ? '🚜' : '🔧'}
+            {listing.category === 'trailer' ? '🚛' : listing.category === 'backhoe' ? '🚜' : listing.category === 'box_truck' ? '🚚' : '🔧'}
           </div>
         )}
         {!listing.available && (

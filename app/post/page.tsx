@@ -293,7 +293,7 @@ export default function PostPage() {
               <div className="rounded-xl border border-gray-100 overflow-hidden">
                 {form.imageUrl && <div className="h-36 bg-gray-100 overflow-hidden"><img src={form.imageUrl} alt="preview" className="w-full h-full object-cover" /></div>}
                 <div className="p-4">
-                  {catObj && <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${form.category === 'trailer' ? 'bg-blue-100 text-blue-700' : form.category === 'backhoe' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>{catObj.icon} {catObj.label}</span>}
+                  {catObj && <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${form.category === 'trailer' ? 'bg-blue-100 text-blue-700' : form.category === 'backhoe' ? 'bg-orange-100 text-orange-700' : form.category === 'box_truck' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'}`}>{catObj.icon} {catObj.label}</span>}
                   <p className="font-semibold text-gray-900 mt-2 text-base">{form.title || <span className="text-gray-400 font-normal italic">Your listing title</span>}</p>
                   {form.description && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{form.description}</p>}
                   <div className="flex items-center justify-between mt-3">

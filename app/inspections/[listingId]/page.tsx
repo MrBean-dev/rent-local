@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { getListing } from '@/lib/storage'
+import { fetchListing } from '@/lib/db'
 import { getInspectionsForListing, deleteInspection } from '@/lib/inspections'
 import { exportInspectionPdf } from '@/lib/exportInspectionPdf'
 import type { Listing, RentalInspection, InspectionPhoto } from '@/lib/types'
@@ -19,10 +19,11 @@ export default function InspectionsListPage() {
   const [exporting, setExporting]       = useState<string | null>(null)
 
   useEffect(() => {
-    const found = getListing(listingId)
-    if (!found) { router.push('/listings'); return }
-    setListing(found)
-    setInspections(getInspectionsForListing(listingId))
+    fetchListing(listingId).then((found) => {
+      if (!found) { router.push('/listings'); return }
+      setListing(found)
+      setInspections(getInspectionsForListing(listingId))
+    })
   }, [listingId, router])
 
   function handleDelete(id: string) {
