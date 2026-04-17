@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getListing } from '@/lib/storage'
 import { getInspectionsForListing, deleteInspection } from '@/lib/inspections'
+import { exportInspectionPdf } from '@/lib/exportInspectionPdf'
 import type { Listing, RentalInspection, InspectionPhoto } from '@/lib/types'
 import { formatDate } from '@/lib/utils'
 
@@ -13,8 +14,9 @@ export default function InspectionsListPage() {
   const router = useRouter()
   const [listing, setListing]         = useState<Listing | null>(null)
   const [inspections, setInspections] = useState<RentalInspection[]>([])
-  const [expanded, setExpanded]       = useState<string | null>(null)
-  const [viewPhoto, setViewPhoto]     = useState<InspectionPhoto | null>(null)
+  const [expanded, setExpanded]         = useState<string | null>(null)
+  const [viewPhoto, setViewPhoto]       = useState<InspectionPhoto | null>(null)
+  const [exporting, setExporting]       = useState<string | null>(null)
 
   useEffect(() => {
     const found = getListing(listingId)
@@ -106,9 +108,36 @@ export default function InspectionsListPage() {
                         </button>
                       ))}
                     </div>
-                    <button onClick={() => handleDelete(insp.id)} className="text-xs text-red-400 hover:text-red-600 hover:underline">
-                      Delete this record
-                    </button>
+                    <div className="flex items-center gap-4">
+                      <button
+                        onClick={async () => {
+                          setExporting(insp.id)
+                          await exportInspectionPdf(insp, listing.title)
+                          setExporting(null)
+                        }}
+                        disabled={exporting === insp.id}
+                        className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700 disabled:opacity-50"
+                      >
+                        {exporting === insp.id ? (
+                          <>
+                            <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Generating…
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Download PDF
+                          </>
+                        )}
+                      </button>
+                      <button onClick={() => handleDelete(insp.id)} className="text-xs text-red-400 hover:text-red-600 hover:underline">
+                        Delete this record
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
