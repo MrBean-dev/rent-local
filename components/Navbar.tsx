@@ -2,13 +2,23 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { useTheme } from './ThemeProvider'
 import { useAuth } from './AuthProvider'
+import { createClient } from '@/lib/supabase'
 
 export default function Navbar() {
   const pathname = usePathname()
   const { theme, toggle } = useTheme()
   const { user, signOut } = useAuth()
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    if (!user) return
+    ;(createClient().from('profiles') as any)
+      .select('role').eq('id', user.id).single()
+      .then(({ data }: any) => setIsAdmin(data?.role === 'admin'))
+  }, [user])
 
   const links = [
     { href: '/', label: 'Home' },
@@ -59,6 +69,11 @@ export default function Navbar() {
               <Link href="/profile" className="text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                 {user.email?.split('@')[0]}
               </Link>
+              {isAdmin && (
+                <Link href="/admin" className="text-sm font-semibold text-purple-600 dark:text-purple-400 px-3 py-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-colors">
+                  Admin
+                </Link>
+              )}
               <button
                 onClick={signOut}
                 className="px-3 py-2 rounded-lg text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
