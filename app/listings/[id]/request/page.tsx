@@ -64,6 +64,22 @@ export default function RequestPage() {
       endDate: form.endDate,
       message: form.message.trim(),
     })
+    // Notify owner by email (fire and forget)
+    fetch('/api/notify/request-received', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ownerEmail: listing.contactEmail || user.email,
+        ownerName: listing.contactName,
+        renterName: renterName || user.email,
+        listingTitle: listing.title,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        message: form.message.trim(),
+        listingId: listing.id,
+        requestId: '',
+      }),
+    }).catch(() => {})
     setSubmitted(true)
   }
 

@@ -58,6 +58,39 @@ export default function RequestsDashboard() {
   async function setStatus(reqId: string, status: RentalRequest['status']) {
     await patchRequestStatus(reqId, status)
     setRequests((prev) => prev.map((r) => r.id === reqId ? { ...r, status } : r))
+
+    if (status === 'approved' || status === 'declined') {
+      const req = requests.find((r) => r.id === reqId)
+      if (req && listing) {
+        // Fetch renter email from Supabase auth
+        import('@/lib/supabase').then(({ createClient }) => {
+          (createClient().from('rental_requests') as any)
+            .select('renter_id')
+            .eq('id', reqId)
+            .single()
+            .then(({ data }: any) => {
+              if (!data) return
+              // Get renter email via profiles or auth — use renter_id as a lookup
+              fetch('/api/notify/request-status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  renterEmail: `${data.renter_id}@placeholder.com`, // resolved server-side
+                  renterName: req.renterName,
+                  ownerName: listing.contactName,
+                  listingTitle: listing.title,
+                  status,
+                  startDate: req.startDate,
+                  endDate: req.endDate,
+                  listingId: listing.id,
+                  requestId: reqId,
+                  renterId: data.renter_id,
+                }),
+              }).catch(() => {})
+            })
+        })
+      }
+    }
   }
 
   const counts = {

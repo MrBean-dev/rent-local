@@ -133,6 +133,23 @@ export default function MessagesPage() {
       sender_id: user.id,
       content: input.trim(),
     })
+
+    // Notify the other participant
+    if (request) {
+      const recipientId = isOwner ? request.renter_id : request.owner_id
+      fetch('/api/notify/message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipientId,
+          senderName: isOwner ? request.owner_name : request.renter_name,
+          listingTitle: request.listing_title,
+          messagePreview: input.trim().slice(0, 120),
+          requestId,
+        }),
+      }).catch(() => {})
+    }
+
     setInput('')
     setSending(false)
     inputRef.current?.focus()
