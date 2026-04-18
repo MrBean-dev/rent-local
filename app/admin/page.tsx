@@ -25,7 +25,13 @@ interface ListingRow {
   profiles: { name: string }
 }
 
-type Tab = 'overview' | 'users' | 'listings'
+interface ServiceRow {
+  id: string; title: string; category: string; rate: number; rate_type: string
+  location: string; available: boolean; created_at: string
+  profiles: { name: string }
+}
+
+type Tab = 'overview' | 'users' | 'listings' | 'services'
 
 function StatCard({ label, value, sub, icon, color }: { label: string; value: number; sub?: string; icon: string; color: string }) {
   return (
@@ -47,10 +53,19 @@ export default function AdminPage() {
   const [isAdmin, setIsAdmin]   = useState<boolean | null>(null)
   const [tab, setTab]           = useState<Tab>('overview')
   const [stats, setStats]       = useState<Stats | null>(null)
-  const [users, setUsers]       = useState<UserRow[]>([])
-  const [listings, setListings] = useState<ListingRow[]>([])
+  const [users, setUsers]           = useState<UserRow[]>([])
+  const [listings, setListings]     = useState<ListingRow[]>([])
+  const [services, setServices]     = useState<ServiceRow[]>([])
   const [actionLoading, setActionLoading] = useState<string | null>(null)
-  const [search, setSearch]     = useState('')
+  const [search, setSearch]         = useState('')
+
+  async function adminFetch(url: string, init?: RequestInit) {
+    const { data: { session } } = await createClient().auth.getSession()
+    return fetch(url, {
+      ...init,
+      headers: { 'Content-Type': 'application/json', ...init?.headers, 'Authorization': `Bearer ${session?.access_token ?? ''}` },
+    })
+  }
 
   // Check admin role
   useEffect(() => {
@@ -65,31 +80,41 @@ export default function AdminPage() {
   // Load stats
   useEffect(() => {
     if (!isAdmin) return
-    fetch('/api/admin/stats').then((r) => r.json()).then(setStats)
+    adminFetch('/api/admin/stats').then((r) => r.json()).then(setStats)
   }, [isAdmin])
 
   // Load tab data
   useEffect(() => {
     if (!isAdmin) return
     if (tab === 'users' && users.length === 0) {
-      fetch('/api/admin/users').then((r) => r.json()).then(setUsers)
+      adminFetch('/api/admin/users').then((r) => r.json()).then(setUsers)
     }
     if (tab === 'listings' && listings.length === 0) {
-      fetch('/api/admin/listings').then((r) => r.json()).then(setListings)
+      adminFetch('/api/admin/listings').then((r) => r.json()).then(setListings)
+    }
+    if (tab === 'services' && services.length === 0) {
+      adminFetch('/api/admin/services').then((r) => r.json()).then(setServices)
     }
   }, [tab, isAdmin])
 
   async function userAction(userId: string, action: string) {
     setActionLoading(`${userId}-${action}`)
-    await fetch('/api/admin/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, action }) })
-    fetch('/api/admin/users').then((r) => r.json()).then(setUsers)
+    await adminFetch('/api/admin/users', { method: 'POST', body: JSON.stringify({ userId, action }) })
+    adminFetch('/api/admin/users').then((r) => r.json()).then(setUsers)
     setActionLoading(null)
   }
 
   async function listingAction(listingId: string, action: string) {
     setActionLoading(`${listingId}-${action}`)
-    await fetch('/api/admin/listings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ listingId, action }) })
-    fetch('/api/admin/listings').then((r) => r.json()).then(setListings)
+    await adminFetch('/api/admin/listings', { method: 'POST', body: JSON.stringify({ listingId, action }) })
+    adminFetch('/api/admin/listings').then((r) => r.json()).then(setListings)
+    setActionLoading(null)
+  }
+
+  async function serviceAction(serviceId: string, action: string) {
+    setActionLoading(`${serviceId}-${action}`)
+    await adminFetch('/api/admin/services', { method: 'POST', body: JSON.stringify({ serviceId, action }) })
+    adminFetch('/api/admin/services').then((r) => r.json()).then(setServices)
     setActionLoading(null)
   }
 
@@ -111,11 +136,15 @@ export default function AdminPage() {
   const filteredListings = listings.filter((l) =>
     !search || l.title.toLowerCase().includes(search.toLowerCase()) || l.profiles?.name?.toLowerCase().includes(search.toLowerCase())
   )
+  const filteredServices = services.filter((s) =>
+    !search || s.title.toLowerCase().includes(search.toLowerCase()) || s.profiles?.name?.toLowerCase().includes(search.toLowerCase())
+  )
 
   const tabs: { id: Tab; label: string; icon: string }[] = [
-    { id: 'overview', label: 'Overview',  icon: '📊' },
-    { id: 'users',    label: 'Users',     icon: '👥' },
-    { id: 'listings', label: 'Listings',  icon: '📋' },
+    { id: 'overview',  label: 'Overview',  icon: '📊' },
+    { id: 'users',     label: 'Users',     icon: '👥' },
+    { id: 'listings',  label: 'Equipment', icon: '📋' },
+    { id: 'services',  label: 'Services',  icon: '👷' },
   ]
 
   return (
@@ -328,6 +357,63 @@ export default function AdminPage() {
                             <button onClick={() => listingAction(l.id, 'show')} disabled={actionLoading === `${l.id}-show`} className="text-xs text-green-600 hover:underline disabled:opacity-50">Show</button>
                           )}
                           <button onClick={() => listingAction(l.id, 'delete')} disabled={actionLoading === `${l.id}-delete`} className="text-xs text-red-500 hover:underline disabled:opacity-50">Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Services */}
+        {tab === 'services' && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <input
+                type="text"
+                placeholder="Search services by title or provider…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-200"
+              />
+              <span className="text-sm text-gray-500 shrink-0">{filteredServices.length} services</span>
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50/60">
+                    <th className="text-left px-5 py-3 font-semibold text-gray-600">Service</th>
+                    <th className="text-left px-5 py-3 font-semibold text-gray-600 hidden sm:table-cell">Provider</th>
+                    <th className="text-left px-5 py-3 font-semibold text-gray-600 hidden md:table-cell">Rate</th>
+                    <th className="text-left px-5 py-3 font-semibold text-gray-600">Status</th>
+                    <th className="text-right px-5 py-3 font-semibold text-gray-600">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {filteredServices.map((s) => (
+                    <tr key={s.id}>
+                      <td className="px-5 py-3">
+                        <p className="font-medium text-gray-900 truncate max-w-[180px]">{s.title}</p>
+                        <p className="text-xs text-gray-400">📍 {s.location}</p>
+                      </td>
+                      <td className="px-5 py-3 text-gray-500 hidden sm:table-cell">{s.profiles?.name || '—'}</td>
+                      <td className="px-5 py-3 text-gray-700 hidden md:table-cell font-medium">${s.rate}/{s.rate_type === 'per_job' ? 'job' : 'hr'}</td>
+                      <td className="px-5 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${s.available ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {s.available ? 'Available' : 'Hidden'}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="flex items-center justify-end gap-3">
+                          <Link href={`/services/${s.id}`} className="text-xs text-teal-600 hover:underline" target="_blank">View</Link>
+                          {s.available ? (
+                            <button onClick={() => serviceAction(s.id, 'hide')} disabled={actionLoading === `${s.id}-hide`} className="text-xs text-yellow-600 hover:underline disabled:opacity-50">Hide</button>
+                          ) : (
+                            <button onClick={() => serviceAction(s.id, 'show')} disabled={actionLoading === `${s.id}-show`} className="text-xs text-green-600 hover:underline disabled:opacity-50">Show</button>
+                          )}
+                          <button onClick={() => serviceAction(s.id, 'delete')} disabled={actionLoading === `${s.id}-delete`} className="text-xs text-red-500 hover:underline disabled:opacity-50">Delete</button>
                         </div>
                       </td>
                     </tr>

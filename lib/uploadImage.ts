@@ -71,6 +71,15 @@ export async function getIdDocumentUrl(path: string): Promise<string> {
   return data?.signedUrl ?? ''
 }
 
+export async function uploadAvatar(userId: string, file: File): Promise<string> {
+  const blob = await compressBlob(file)
+  const path = `avatars/${userId}.jpg`
+  const supabase = createClient()
+  await supabase.storage.from('Listings').upload(path, blob, { contentType: 'image/jpeg', upsert: true })
+  const { data } = supabase.storage.from('Listings').getPublicUrl(path)
+  return data.publicUrl
+}
+
 export async function deleteListingImage(imageUrl: string): Promise<void> {
   // Extract path from URL: .../storage/v1/object/public/listings/{path}
   const match = imageUrl.match(/\/Listings\/(.+)$/)

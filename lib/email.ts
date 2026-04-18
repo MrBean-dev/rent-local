@@ -93,6 +93,58 @@ export async function sendRequestStatusUpdate(opts: {
   })
 }
 
+export async function sendServiceRequestReceived(opts: {
+  providerEmail: string; providerName: string; hirerName: string
+  serviceTitle: string; startDate: string; endDate: string
+  message: string; serviceId: string
+}) {
+  await resend.emails.send({
+    from: FROM,
+    to: opts.providerEmail,
+    subject: `New hire request for "${opts.serviceTitle}"`,
+    html: base(
+      `New Request from ${opts.hirerName}`,
+      `<p style="color:#374151;font-size:15px">Someone wants to hire you!</p>
+      ${table(
+        detail('Service', opts.serviceTitle) +
+        detail('From', opts.hirerName) +
+        detail('Dates', `${opts.startDate} → ${opts.endDate}`) +
+        (opts.message ? detail('Message', opts.message) : '')
+      )}
+      ${btn('Review Request →', `${APP_URL}/services/${opts.serviceId}/requests`)}`
+    ),
+  })
+}
+
+export async function sendServiceRequestStatusUpdate(opts: {
+  hirerEmail: string; hirerName: string; providerName: string
+  serviceTitle: string; status: 'approved' | 'declined'
+  startDate: string; endDate: string; serviceId: string; requestId: string
+}) {
+  const approved = opts.status === 'approved'
+  await resend.emails.send({
+    from: FROM,
+    to: opts.hirerEmail,
+    subject: `Your request for "${opts.serviceTitle}" was ${opts.status}`,
+    html: base(
+      approved ? `🎉 Hire Request Approved!` : `Hire Request Declined`,
+      `<p style="color:#374151;font-size:15px">
+        ${approved
+          ? `<strong>${opts.providerName}</strong> approved your hire request.`
+          : `Unfortunately, <strong>${opts.providerName}</strong> declined your request.`}
+      </p>
+      ${table(
+        detail('Service', opts.serviceTitle) +
+        detail('Provider', opts.providerName) +
+        detail('Dates', `${opts.startDate} → ${opts.endDate}`)
+      )}
+      ${approved
+        ? btn('Message Provider →', `${APP_URL}/services/messages/${opts.requestId}`)
+        : btn('Browse Other Services →', `${APP_URL}/services`)}`
+    ),
+  })
+}
+
 export async function sendNewMessage(opts: {
   recipientEmail: string; recipientName: string; senderName: string
   listingTitle: string; messagePreview: string; requestId: string

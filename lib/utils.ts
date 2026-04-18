@@ -24,6 +24,10 @@ export function categoryLabel(cat: string): string {
   return map[cat] ?? cat
 }
 
+export function formatRate(rate: number, rateType: string): string {
+  return `$${rate.toLocaleString()}/${rateType === 'per_job' ? 'job' : 'hr'}`
+}
+
 export function conditionLabel(cond: string): string {
   const map: Record<string, string> = {
     excellent: 'Excellent',

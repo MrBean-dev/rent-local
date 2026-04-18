@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { fetchProfile, upsertProfile } from '@/lib/db'
 import { useAuth } from '@/components/AuthProvider'
+import { uploadAvatar } from '@/lib/uploadImage'
+import { createClient } from '@/lib/supabase'
 
 interface Form { name: string; phone: string; location: string; bio: string }
 interface Errors { [k: string]: string }
@@ -11,17 +13,21 @@ const blank: Form = { name: '', phone: '', location: '', bio: '' }
 
 export default function ProfilePage() {
   const { user, loading, signOut } = useAuth()
-  const [form, setForm]     = useState<Form>(blank)
-  const [errors, setErrors] = useState<Errors>({})
-  const [saved, setSaved]   = useState(false)
+  const [form, setForm]       = useState<Form>(blank)
+  const [errors, setErrors]   = useState<Errors>({})
+  const [saved, setSaved]     = useState(false)
   const [editing, setEditing] = useState(false)
   const [profileLoaded, setProfileLoaded] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState('')
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const avatarRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!user) return
     fetchProfile(user.id).then((p) => {
       if (p) {
         setForm({ name: p.name || '', phone: p.phone || '', location: p.location || '', bio: p.bio || '' })
+        if (p.avatar_url) setAvatarUrl(p.avatar_url)
         setEditing(!p.name)
       } else {
         setEditing(true)
@@ -40,6 +46,19 @@ export default function ProfilePage() {
     if (!form.name.trim()) e.name = 'Required'
     setErrors(e)
     return Object.keys(e).length === 0
+  }
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !user) return
+    setUploadingAvatar(true)
+    try {
+      const url = await uploadAvatar(user.id, file)
+      setAvatarUrl(url)
+      await (createClient().from('profiles') as any).update({ avatar_url: url }).eq('id', user.id)
+    } finally {
+      setUploadingAvatar(false)
+    }
   }
 
   async function handleSave(ev: React.FormEvent) {
@@ -82,8 +101,22 @@ export default function ProfilePage() {
         {!editing && form.name && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="p-6 flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-brand-600 flex items-center justify-center text-white text-2xl font-bold shrink-0">
-                {form.name.charAt(0).toUpperCase()}
+              <div className="relative shrink-0">
+                <input ref={avatarRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+                <div className="w-16 h-16 rounded-full bg-brand-600 flex items-center justify-center text-white text-2xl font-bold overflow-hidden">
+                  {avatarUrl
+                    ? <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                    : form.name.charAt(0).toUpperCase()
+                  }
+                </div>
+                <button
+                  onClick={() => avatarRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  className="absolute -bottom-1 -right-1 w-6 h-6 bg-brand-600 text-white rounded-full flex items-center justify-center text-xs hover:bg-brand-700 transition-colors disabled:opacity-50"
+                  title="Change photo"
+                >
+                  {uploadingAvatar ? '…' : '✏️'}
+                </button>
               </div>
               <div className="min-w-0">
                 <p className="text-xl font-bold text-gray-900">{form.name}</p>
@@ -109,6 +142,14 @@ export default function ProfilePage() {
             <Link href="/profile/requests" className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3 hover:shadow-md transition-shadow">
               <span className="text-2xl">📅</span>
               <div><p className="font-semibold text-gray-900 text-sm">My Requests</p><p className="text-xs text-gray-400">Rentals you requested</p></div>
+            </Link>
+            <Link href="/profile/services" className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3 hover:shadow-md transition-shadow">
+              <span className="text-2xl">👷</span>
+              <div><p className="font-semibold text-gray-900 text-sm">My Services</p><p className="text-xs text-gray-400">Services you offer</p></div>
+            </Link>
+            <Link href="/profile/hire-requests" className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3 hover:shadow-md transition-shadow">
+              <span className="text-2xl">🤝</span>
+              <div><p className="font-semibold text-gray-900 text-sm">My Hire Requests</p><p className="text-xs text-gray-400">Services you've requested</p></div>
             </Link>
           </div>
         )}

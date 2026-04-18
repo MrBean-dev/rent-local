@@ -159,6 +159,7 @@ function rowToRequest(row: any): RentalRequest {
     ownerName: row.listings?.profiles?.name ?? '',
     ownerPhone: '',
     ownerEmail: '',
+    renterId: row.renter_id ?? '',
     renterName: row.profiles?.name ?? '',
     renterPhone: '',
     renterEmail: '',

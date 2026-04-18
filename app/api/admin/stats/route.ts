@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { isAdminRequest } from '@/lib/adminAuth'
 
 const admin = () => createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -7,6 +8,7 @@ const admin = () => createClient(
 )
 
 export async function GET(req: NextRequest) {
+  if (!(await isAdminRequest(req))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const sb = admin()
 
   const [users, listings, requests, reviews, messages] = await Promise.all([

@@ -11,7 +11,8 @@ export default function Navbar() {
   const pathname = usePathname()
   const { theme, toggle } = useTheme()
   const { user, signOut } = useAuth()
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [isAdmin, setIsAdmin]   = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -20,10 +21,14 @@ export default function Navbar() {
       .then(({ data }: any) => setIsAdmin(data?.role === 'admin'))
   }, [user])
 
+  // Close menu on route change
+  useEffect(() => { setMenuOpen(false) }, [pathname])
+
   const links = [
-    { href: '/', label: 'Home' },
-    { href: '/listings', label: 'Browse' },
-    { href: '/post', label: 'Post Equipment' },
+    { href: '/',        label: 'Home' },
+    { href: '/listings', label: 'Equipment' },
+    { href: '/services', label: 'Services' },
+    { href: '/post',    label: 'Post Equipment' },
   ]
 
   return (
@@ -83,6 +88,9 @@ export default function Navbar() {
               <Link href="/post" className="px-4 py-2 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 transition-colors">
                 + List Equipment
               </Link>
+              <Link href="/services/post" className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition-colors">
+                + Offer Service
+              </Link>
             </div>
           ) : (
             <div className="flex items-center gap-2 ml-2">
@@ -96,15 +104,12 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Mobile: show active page title + dark toggle */}
-        <div className="sm:hidden flex items-center gap-2">
-          <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-            {links.find((l) => l.href === pathname)?.label ?? 'RentLocal'}
-          </span>
+        {/* Mobile: dark toggle + hamburger */}
+        <div className="sm:hidden flex items-center gap-1">
           <button
             onClick={toggle}
             aria-label="Toggle dark mode"
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             {theme === 'dark' ? (
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -116,8 +121,78 @@ export default function Navbar() {
               </svg>
             )}
           </button>
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Toggle menu"
+            className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          >
+            {menuOpen ? (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
         </div>
       </div>
+
+      {/* Mobile menu */}
+      {menuOpen && (
+        <div className="sm:hidden border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 space-y-1">
+          {links.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className={`block px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                pathname === l.href
+                  ? 'bg-brand-50 text-brand-600'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}
+            >
+              {l.label}
+            </Link>
+          ))}
+
+          <div className="pt-2 border-t border-gray-100 dark:border-gray-700 space-y-1">
+            {user ? (
+              <>
+                <Link href="/profile" className="block px-4 py-2.5 rounded-xl text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                  👤 {user.email?.split('@')[0]}
+                </Link>
+                {isAdmin && (
+                  <Link href="/admin" className="block px-4 py-2.5 rounded-xl text-sm font-semibold text-purple-600 hover:bg-purple-50 transition-colors">
+                    🔐 Admin
+                  </Link>
+                )}
+                <Link href="/post" className="block px-4 py-2.5 rounded-xl text-sm font-semibold text-brand-600 hover:bg-brand-50 transition-colors">
+                  + List Equipment
+                </Link>
+                <Link href="/services/post" className="block px-4 py-2.5 rounded-xl text-sm font-semibold text-teal-600 hover:bg-teal-50 transition-colors">
+                  + Offer a Service
+                </Link>
+                <button
+                  onClick={signOut}
+                  className="block w-full text-left px-4 py-2.5 rounded-xl text-sm text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                >
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="block px-4 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                  Sign in
+                </Link>
+                <Link href="/register" className="block px-4 py-2.5 rounded-xl text-sm font-semibold bg-brand-600 text-white hover:bg-brand-700 transition-colors text-center">
+                  Get started
+                </Link>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </nav>
   )
 }

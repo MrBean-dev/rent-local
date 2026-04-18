@@ -210,7 +210,7 @@ export default function RequestsDashboard() {
                             requestId={req.id}
                             listingId={id}
                             reviewerId={user!.id}
-                            revieweeId={req.renterName}
+                            revieweeId={req.renterId}
                             reviewerType="owner"
                             revieweeName={req.renterName}
                             listingTitle={listing.title}

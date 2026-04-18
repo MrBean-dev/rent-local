@@ -39,6 +39,7 @@ export interface RentalRequest {
   ownerName: string
   ownerPhone: string
   ownerEmail: string
+  renterId: string
   renterName: string
   renterPhone: string
   renterEmail: string
@@ -77,4 +78,52 @@ export interface RentalInspection {
   renterName: string
   createdAt: string
   photos: InspectionPhoto[]
+}
+
+export type ServiceCategory = 'backhoe_operator' | 'box_truck_driver' | 'trailer_hauler' | 'general_labor' | 'landscaping' | 'tree_service' | 'snow_removal' | 'pressure_washing' | 'painting' | 'moving' | 'hauling' | 'concrete'
+export type RateType = 'hourly' | 'per_job'
+
+export interface ServiceListing {
+  id: string
+  ownerId: string
+  title: string
+  description: string
+  category: ServiceCategory
+  rate: number
+  rateType: RateType
+  location: string
+  contactName: string
+  imageUrl?: string
+  available: boolean
+  insured: boolean
+  yearsExperience?: number
+  serviceRadius?: number
+  lat?: number
+  lng?: number
+  createdAt: string
+}
+
+export interface ServiceReview {
+  id: string
+  requestId: string
+  serviceId: string
+  reviewerId: string
+  reviewerName: string
+  rating: number
+  comment: string
+  createdAt: string
+}
+
+export interface ServiceRequest {
+  id: string
+  serviceId: string
+  serviceTitle: string
+  providerName: string
+  hirerId: string
+  hirerName: string
+  startDate: string
+  endDate: string
+  message: string
+  status: RequestStatus
+  createdAt: string
 }
